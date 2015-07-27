@@ -1,11 +1,19 @@
 $(document).ready(function(){
-	// time virtualizer stuff
+	//time virtualizer stuff
+	require('../lib/TimeVirtualizer');
+
 	timeVirtualizer.virtualize();
 	var advanceMS = 10;
+	//Slowing down/speeding up time is achieved through changing this variable
 	advanceTime = function () {
 		timeVirtualizer.advanceTimeMS(advanceMS);
 	}
+	//Every 10ms the time is advanced for 'advanceMS' milliseconds, thus, changing this variable
+	//can change the speed of ingame time
 	var intervalId = timeVirtualizer._reals.setInterval.call(window, advanceTime, 10);
+
+	//Snake game code mostly taken from 
+	//http://thecodeplayer.com/walkthrough/html5-game-tutorial-make-a-snake-game-using-html5-canvas-jquery
 
 	//Canvas stuff
 	var canvas = $("#canvas")[0];
@@ -13,25 +21,20 @@ $(document).ready(function(){
 	var w = $("#canvas").width();
 	var h = $("#canvas").height();
 	
-	//Lets save the cell width in a variable for easy control
 	var cw = 10;
 	var d;
 	var food;
 	var score;
 	
-	//Lets create the snake now
 	var snake_array; //an array of cells to make up the snake
 	
 	function init()
 	{
 		d = "right"; //default direction
 		create_snake();
-		create_food(); //Now we can see the food particle
-		//finally lets display the score
+		create_food();
 		score = 0;
 		
-		//Lets move the snake now using a timer which will trigger the paint function
-		//every 60ms
 		if(typeof game_loop != "undefined") clearInterval(game_loop);
 		game_loop = setInterval(paint, 60);
 	}
@@ -39,11 +42,10 @@ $(document).ready(function(){
 	
 	function create_snake()
 	{
-		var length = 5; //Length of the snake
-		snake_array = []; //Empty array to start with
+		var length = 5;
+		snake_array = [];
 		for(var i = length-1; i>=0; i--)
 		{
-			//This will create a horizontal snake starting from the top left
 			snake_array.push({x: i, y:0});
 		}
 	}
@@ -55,49 +57,37 @@ $(document).ready(function(){
 			x: Math.round(Math.random()*(w-cw)/cw), 
 			y: Math.round(Math.random()*(h-cw)/cw), 
 		};
-		//This will create a cell with x/y between 0-44
-		//Because there are 45(450/10) positions accross the rows and columns
 	}
 	
-	//Lets paint the snake now
 	function paint()
 	{
 		//To avoid the snake trail we need to paint the BG on every frame
-		//Lets paint the canvas now
 		ctx.fillStyle = "white";
 		ctx.fillRect(0, 0, w, h);
 		ctx.strokeStyle = "black";
 		ctx.strokeRect(0, 0, w, h);
 		
-		//The movement code for the snake to come here.
-		//The logic is simple
-		//Pop out the tail cell and place it infront of the head cell
 		var nx = snake_array[0].x;
 		var ny = snake_array[0].y;
-		//These were the position of the head cell.
-		//We will increment it to get the new head position
-		//Lets add proper direction based movement now
+		
 		if(d == "right") nx++;
 		else if(d == "left") nx--;
 		else if(d == "up") ny--;
 		else if(d == "down") ny++;
 		
-		//Lets add the game over clauses now
-		//This will restart the game if the snake hits the wall
-		//Lets add the code for body collision
-		//Now if the head of the snake bumps into its body, the game will restart
+		//This will restart the game if the snake hits the wall or bumps into its body
 		if(nx == -1 || nx == w/cw || ny == -1 || ny == h/cw || check_collision(nx, ny, snake_array))
 		{
 			//restart game
 			init();
-			//Lets organize the code a bit now.
 			return;
 		}
 		
-		//Lets write the code to make the snake eat the food
+		//The movement code
 		//The logic is simple
 		//If the new head position matches with that of the food,
-		//Create a new head instead of moving the tail
+		//create a new head instead of moving the tail.
+		//If not, pop out the tail cell and place it in front of the head cell
 		if(nx == food.x && ny == food.y)
 		{
 			var tail = {x: nx, y: ny};
@@ -110,8 +100,7 @@ $(document).ready(function(){
 			var tail = snake_array.pop(); //pops out the last cell
 			tail.x = nx; tail.y = ny;
 		}
-		//The snake can now eat the food.
-		
+
 		snake_array.unshift(tail); //puts back the tail as the first cell
 		
 		for(var i = 0; i < snake_array.length; i++)
@@ -126,12 +115,11 @@ $(document).ready(function(){
 		//Lets paint the score
 		var score_text = "Score: " + score;
 		ctx.fillText(score_text, 5, h-5);
-
+		//Lets paint the speed of the game
 		var speed_text = "Speed: " + advanceMS*10 + "% of normal";
 		ctx.fillText(speed_text, 50, h-5);
 	}
 	
-	//Lets first create a generic function to paint cells
 	function paint_cell(x, y)
 	{
 		ctx.fillStyle = "blue";
@@ -152,26 +140,22 @@ $(document).ready(function(){
 		return false;
 	}
 	
-	//Lets add the keyboard controls now
+	//Keyboard controls
 	$(document).keydown(function(e){
 		var key = e.which;
-		// We will add another clause to prevent reverse gear
+		//Movement control
 		if(key == "37" && d != "right") d = "left";
 		else if(key == "38" && d != "down") d = "up";
 		else if(key == "39" && d != "left") d = "right";
 		else if(key == "40" && d != "up") d = "down";
-		// The snake is now keyboard controllable
 
+		//Speed control
 		if (key == "90" && advanceMS > 1) {
 			console.log("time down");
 			advanceMS--;
-			// timeVirtualizer._reals.clearInterval.call(window, intervalId);
-			// intervalId = timeVirtualizer._reals.setInterval.call(window, advanceTime, 10);
 		} else if (key == "88" && advanceMS < 20) {
 			console.log("time up");
 			advanceMS++;
-			// timeVirtualizer._reals.clearInterval.call(window, intervalId);
-			// intervalId = timeVirtualizer._reals.setInterval.call(window, advanceTime, 10);
 		}
 	})
 });
