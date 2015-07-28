@@ -649,11 +649,15 @@ exports.nowOffset = nowOffset;
 $(document).ready(function(){
 	//time virtualizer stuff
 	require('../lib/TimeVirtualizer');
+
 	timeVirtualizer.virtualize();
 	var advanceMS = 10;
+	//Slowing down/speeding up time is achieved through changing this variable
 	advanceTime = function () {
 		timeVirtualizer.advanceTimeMS(advanceMS);
 	}
+	//Every 10ms the time is advanced for 'advanceMS' milliseconds, thus, changing this variable
+	//can change the speed of ingame time
 	var intervalId = timeVirtualizer._reals.setInterval.call(window, advanceTime, 10);
 
 	//Snake game code mostly taken from 
@@ -794,12 +798,16 @@ $(document).ready(function(){
 		else if(key == "40" && d != "up") d = "down";
 
 		//Speed control
-		if (key == "90" && advanceMS > 1) {
+		else if (key == "90" && advanceMS > 1) {
 			console.log("time down");
 			advanceMS--;
 		} else if (key == "88" && advanceMS < 20) {
 			console.log("time up");
 			advanceMS++;
+		} else if (key == "83") {
+			console.log("unvirtualizing");
+			timeVirtualizer._reals.clearInterval.call(window, intervalId);
+			timeVirtualizer.unVirtualize();
 		}
 	})
 });

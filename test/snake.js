@@ -150,12 +150,17 @@ $(document).ready(function(){
 		else if(key == "40" && d != "up") d = "down";
 
 		//Speed control
-		if (key == "90" && advanceMS > 1) {
+		else if (key == "90" && advanceMS > 1) {
 			console.log("time down");
 			advanceMS--;
 		} else if (key == "88" && advanceMS < 20) {
 			console.log("time up");
 			advanceMS++;
+		} else if (key == "83") {
+			console.log("unvirtualizing");
+			timeVirtualizer._reals.clearInterval.call(window, intervalId);
+			advanceMS = 10;
+			timeVirtualizer.unVirtualize();
 		}
 	})
 });
