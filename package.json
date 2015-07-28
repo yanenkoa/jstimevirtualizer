@@ -1,0 +1,12 @@
+{	
+	"name": "timevirtualizer",
+	"version": "0.0.1",
+	"author": "Eugene Batalov <eabatalov89@gmail.com>",
+	"description": "Allows to manually manipulate time flow inside JavaScript program",
+	"main": "./lib/TimeVirtualizer.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/yanenkoa/jstimevirtualizer"
+	},
+	"license": "MIT"
+}
