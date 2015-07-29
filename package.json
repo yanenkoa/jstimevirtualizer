@@ -8,14 +8,5 @@
     "type": "git",
     "url": "https://github.com/yanenkoa/jstimevirtualizer"
   },
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/yanenkoa/jstimevirtualizer/issues"
-  },
-  "directories": {
-    "test": "test"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  }
+  "license": "MIT"
 }
