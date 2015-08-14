@@ -44,6 +44,8 @@ describe("Time advancing function", function() {
         dump(typeof(timeVirtualizer._timeoutWorker));
 
         var formerTS = timeVirtualizer.getVirtTSMS();
+        // The following string should actually call timeVirtualizer.advanceTimeMS
+        // The reason it doesn't is that jasmine seems to not work with web workers
         timeVirtualizer._advanceTimeMSInSafeContext(10000);
         dump(timeVirtualizer.getVirtTSMS() - formerTS);
         expect(timeVirtualizer.getVirtTSMS()).toEqual(formerTS + 10000);
@@ -63,26 +65,13 @@ describe("Real setTimeout function", function() {
 
     it("should set real timeouts", function() {
         timerCallback = jasmine.createSpy("timerCallback");
+
+        // The following string should actually call timeVirtualizer.realSetTimeout
+        // The reason it doesn't is exactly the same as with advanceTimeMS
+        // Therefore, this test right now is useless. It is left here as a placeholder
         var timeoutID = timeVirtualizer._reals.setTimeout.call(window, timerCallback, 100);
 
         jasmine.clock().tick(101);
         expect(timerCallback).toHaveBeenCalled();
     });
 });
-
-/*
-describe("Unvirtualize function", function() {
-    beforeAll(function() {
-        jasmine.clock().install();
-    });
-
-    afterAll(function() {
-        jasmine.clock().uninstall();
-    });
-
-    it("makes timeouts work as if there were no virtualization", function() {
-        expect(timeVirtualizer._virtualized).toBe(false);
-        
-    });
-});
-*/
