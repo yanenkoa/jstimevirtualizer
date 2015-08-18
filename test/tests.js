@@ -42,12 +42,20 @@ describe("Time advancing function", function() {
         var timerCallback = jasmine.createSpy("timerCallback");
         var timeoutID = setTimeout(timerCallback, 100);
 
-        jasmine.clock().tick(101);
-        expect(timerCallback).not.toHaveBeenCalled();
-        
         // Same thing with timeVirtualizer.advanceTimeMS here
         timeVirtualizer._advanceTimeMSInSafeContext(101);
         expect(timerCallback).toHaveBeenCalled();
+    });
+
+    it("triggers intervals", function() {
+        var timerCallback = jasmine.createSpy("timerCallback");
+        var timeoutID = setInterval(timerCallback, 100);
+
+        // Same thing with timeVirtualizer.advanceTimeMS here
+        timeVirtualizer._advanceTimeMSInSafeContext(150);
+        expect(timerCallback.calls.count()).toBe(1);
+        timeVirtualizer._advanceTimeMSInSafeContext(51);
+        expect(timerCallback.calls.count()).toBe(2);
     });
 });
 
