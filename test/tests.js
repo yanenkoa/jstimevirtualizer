@@ -1,19 +1,11 @@
-describe("Test test", function() {
-    isUndefOrNull = require('../lib/util').isUndefOrNull;
-    it("returns true if undefined or null", function() {
-        expect(isUndefOrNull(undefined)).toBe(true);
-    });
+describe("Neccessary operations", function(){
+    jasmine.clock().install();
+    require('../lib/TimeVirtualizer');
 });
 
 describe("Virtualize function", function(){
-    beforeAll(function() {
-        jasmine.clock().install();
-        require('../lib/TimeVirtualizer');
-    });
-
     afterAll(function() {
         timeVirtualizer.unVirtualize();
-        jasmine.clock().uninstall();
     });
 
     it("stops time", function() {
@@ -30,39 +22,36 @@ describe("Virtualize function", function(){
 
 describe("Time advancing function", function() {
     beforeAll(function() {
-        jasmine.clock().install();
         timeVirtualizer.virtualize();
     });
 
     afterAll(function() {
         timeVirtualizer.unVirtualize();
-        jasmine.clock().uninstall();
     });
 
     it("changes virtual time", function() {
-        dump(Object.keys(timeVirtualizer));
-        dump(typeof(timeVirtualizer._timeoutWorker));
 
         var formerTS = timeVirtualizer.getVirtTSMS();
         // The following string should actually call timeVirtualizer.advanceTimeMS
         // The reason it doesn't is that jasmine seems to not work with web workers
         timeVirtualizer._advanceTimeMSInSafeContext(10000);
-        dump(timeVirtualizer.getVirtTSMS() - formerTS);
         expect(timeVirtualizer.getVirtTSMS()).toEqual(formerTS + 10000);
+    });
+
+    it("triggers timeouts", function() {
+        var timerCallback = jasmine.createSpy("timerCallback");
+        var timeoutID = setTimeout(timerCallback, 100);
+
+        jasmine.clock().tick(101);
+        expect(timerCallback).not.toHaveBeenCalled();
+        
+        // Same thing with timeVirtualizer.advanceTimeMS here
+        timeVirtualizer._advanceTimeMSInSafeContext(101);
+        expect(timerCallback).toHaveBeenCalled();
     });
 });
 
 describe("Real setTimeout function", function() {
-    beforeAll(function() {
-        jasmine.clock().install();
-        timeVirtualizer.virtualize();
-    });
-
-    afterAll(function() {
-        timeVirtualizer.unVirtualize();
-        jasmine.clock().uninstall();
-    });
-
     it("should set real timeouts", function() {
         timerCallback = jasmine.createSpy("timerCallback");
 
