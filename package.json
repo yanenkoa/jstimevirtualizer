@@ -1,6 +1,6 @@
 {
   "name": "timevirtualizer",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "author": "Eugene Batalov <eabatalov89@gmail.com>",
   "description": "Allows to manually manipulate time flow inside JavaScript program",
   "main": "./lib/TimeVirtualizer.js",
