@@ -32,5 +32,5 @@ After including the module with one of those two ways, you are able to access `t
   All the timeouts, intervals and animation requests created after **OR** before calling that metod will obey virtualized time. All the timeouts, intervals and animation requests will retain their IDs.
 * **`timeVirtualizer.unVirtualize()`** — disable time virtualization. All the timeouts, which have not fired yet, will behave as if there were no virtualization in the first place. All the intervals and animation requests will behave as if there were no virtualization since their last call. All the timeouts, intervals and animation requests will retain their IDs.
 * **`timeVirtualizer.advanceMS(durationMS)`** — advance virtual time by `durationMS` milliseconds. After virtual time is advanced, all the operations, which should have been done in that time interval, are performed.
-* **`timeVirtualizer.getVirtTSMS()`** — get virtual timestamp in milliseconds. This is the equivalent of `Date.now()` function for virtual time.
+* **`timeVirtualizer.virtDateNow()`** — get virtual timestamp in milliseconds. This is the equivalent of `Date.now()` function for virtual time.
 * **`timeVirtualizer.realDateNow()`** — get real timestamp in milliseconds.
