@@ -31,11 +31,11 @@ describe("Time advancing function", function() {
 
     it("changes virtual time", function() {
 
-        var formerTS = timeVirtualizer.getVirtTSMS();
+        var formerTS = timeVirtualizer.virtDateNow();
         // The following string should actually call timeVirtualizer.advanceTimeMS
         // The reason it doesn't is that jasmine seems to not work with web workers
         timeVirtualizer._advanceTimeMSInSafeContext(10000);
-        expect(timeVirtualizer.getVirtTSMS()).toEqual(formerTS + 10000);
+        expect(timeVirtualizer.virtDateNow()).toEqual(formerTS + 10000);
     });
 
     it("triggers timeouts", function() {
