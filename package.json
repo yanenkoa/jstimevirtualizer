@@ -14,9 +14,12 @@
     "karma-browserify": "^4.3.0",
     "karma-chrome-launcher": "^0.2.0",
     "karma-jasmine": "^0.3.6",
-	"browserify": "^11.0.0"
+    "browserify": "^11.0.0"
   },
   "scripts": {
-	"build": "browserify lib/TimeVirtualizer.js -o dist/assembledTimeVirtualizer.js"
+    "build": "browserify lib/TimeVirtualizer.js -o dist/assembledTimeVirtualizer.js"
+  },
+  "dependencies": {
+    "webworkify": "^1.0.2"
   }
 }
