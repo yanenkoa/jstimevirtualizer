@@ -1,14 +1,15 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-Util = require('./Util');
-assert = Util.assert;
-isUndefOrNull = Util.isUndefOrNull;
-isString = Util.isString;
-nowOffset = Util.nowOffset;
+module.exports = AnimationFrameRequest;
+
+var Util = require('./Util');
+var assert = Util.assert;
+var isUndefOrNull = Util.isUndefOrNull;
 
 // AnimationFrameRequest
 // killMeFunc timeVirtualizer.(animFrameRequest id)
-var AnimationFrameRequest = function(
+function AnimationFrameRequest(
     realRequestAnimationFrameFunc, killMeVirtualizerFunc, callback) {
+
     this._realId = realRequestAnimationFrameFunc.call(
         window, this._onRealAnimationFrameFired.bind(this));
     this._callback = callback;
@@ -72,16 +73,16 @@ AnimationFrameRequest.prototype.destroy = function() {
     delete this._isRealFired;
 };
 
-module.exports = AnimationFrameRequest;
+},{"./Util":6}],2:[function(require,module,exports){
+module.exports = Performance;
 
-},{"./Util":5}],2:[function(require,module,exports){
-Util = require('./Util');
-assert = Util.assert;
-isUndefOrNull = Util.isUndefOrNull;
-isString = Util.isString;
-nowOffset = Util.nowOffset;
+var Util = require('./Util');
+var assert = Util.assert;
+var isUndefOrNull = Util.isUndefOrNull;
+var isString = Util.isString;
+var nowOffset = Util.nowOffset;
 
-var Performance = function(timeVirtualizer) {
+function Performance(timeVirtualizer) {
     this._timeVirtualizer = timeVirtualizer;
     this._realPerformance = window.performance;
     this._realPerformanceNow = window.performance.now;
@@ -116,9 +117,34 @@ Performance.prototype.unVirtualize = function() {
     window.performance.now = this._realPerformanceNow;
 };
 
-module.exports = Performance;
 
-},{"./Util":5}],3:[function(require,module,exports){
+},{"./Util":6}],3:[function(require,module,exports){
+var Util = require('./Util');
+var isUndefOrNull = Util.isUndefOrNull;
+var nowOffset = Util.nowOffset;
+
+if (isUndefOrNull(window.performance)){
+    window.performance = {};
+}
+
+if(!window.performance.now) {
+    window.performance.now = function(){
+        return Date.now() - nowOffset;
+    };
+}
+
+if(!window.requestAnimationFrame) {
+    window.requestAnimationFrame = 
+        window.mozRequestAnimationFrame ||
+        window.webkitRequestAnimationFrame ||
+        window.msRequestAnimationFrame;
+}
+
+if(!window.cancelAnimationFrame) {
+    window.cancelAnimationFrame = window.mozCancelAnimationFrame;
+}
+
+},{"./Util":6}],4:[function(require,module,exports){
 /*
  * TimeVirtualizer allows to move into/out of virtual time mode.
  * Time is advanced manually using advanceTimeMS() method
@@ -138,47 +164,24 @@ module.exports = Performance;
 
 (function() {
 
-Util = require('./Util');
-assert = Util.assert;
-isUndefOrNull = Util.isUndefOrNull;
-isString = Util.isString;
-nowOffset = Util.nowOffset;
+var Util = require('./Util');
+var assert = Util.assert;
+var isUndefOrNull = Util.isUndefOrNull;
+var isString = Util.isString;
 
-if (isUndefOrNull(window.performance)){
-    window.performance = {};
-}
-
-if(!window.performance.now) {
-    window.performance.now = function(){
-        return Date.now() - nowOffset;
-    };
-}
+require('./TimeEnvNormalizer.js');
+var makeWorker = require('./WorkerMaker.js');
 
 var LOG_TAG = '[TimeVirtualizer]';
-
-function makeWorker(script) {
-    var URL = window.URL || window.webkitURL;
-    var Blob = window.Blob;
-    var Worker = window.Worker;
- 
-    if (!URL || !Blob || !Worker || !script) {
-        return null;
-    }
- 
-    var blob = new Blob([script]);
-    var worker = new Worker(URL.createObjectURL(blob));
-    return worker;
-}
 
 function TimeVirtualizer() {
     this._virtualized = false;
     this._timeouts = [];
     this._requestAnimFrames = [];
     this._virtTSMS = 0;
-    this._isCallingTimerHandlers = false;
     this._virtTimeToAdvanceMS = 0;
     // this._timeoutWorker = makeWorker(workerText);
-    this._timeoutWorker = makeWorker(require('./Worker').toString());
+    this._timeoutWorker = makeWorker(require('./Worker.js').toString());
     this._timeoutWorker.onmessage = this._onTimeoutWorkerMessage.bind(this);
     this._realTimeoutFuncs = {};
     this._realTimeoutFuncsIdCntr = 0;
@@ -193,14 +196,8 @@ function TimeVirtualizer() {
         performance : null
     };
 
-    this._reals.requestAnimationFrame =
-        window.requestAnimationFrame ||
-        window.mozRequestAnimationFrame ||
-        window.webkitRequestAnimationFrame ||
-        window.msRequestAnimationFrame;
-    this._reals.cancelAnimationFrame =
-        window.cancelAnimationFrame ||
-        window.mozCancelAnimationFrame;
+    this._reals.requestAnimationFrame = window.requestAnimationFrame;
+    this._reals.cancelAnimationFrame = window.cancelAnimationFrame;
     this._reals.setInterval = window.setInterval;
     this._reals.clearInterval = window.clearInterval;
     this._reals.setTimeout = window.setTimeout;
@@ -214,35 +211,9 @@ function TimeVirtualizer() {
     window.clearInterval = this._clearInterval.bind(this);
     window.setTimeout = this._setTimeout.bind(this);
     window.clearTimeout = this._clearTimeout.bind(this);
-    this._virtDate = new TimeVirtualizer.VirtDate(this);
-    this._virtPerformance = new TimeVirtualizer.Performance(this);
+    this._virtDate = new VirtDate(this);
+    this._virtPerformance = new Performance(this);
 }
-
-// XXX this is not tested and probably broken
-TimeVirtualizer.prototype.destroy = function() {
-    this.unVirtualize();
-    window.requestAnimationFrame = this._reals.requestAnimationFrame;
-    window.cancelAnimationFrame = this._reals.cancelAnimationFrame;
-    window.setInterval = this._reals.setInterval;
-    window.clearInterval = this._reals.clearInterval;
-    window.setTimeout = this._reals.setTimeout;
-    window.clearTimeout = this._reals.clearTimeout;
-
-    this._timeoutWorker.terminate();
-
-    delete this._timeouts;
-    delete this._requestAnimFrames;
-    delete this._virtTSMS;
-    delete this._virtualized;
-    delete this._reals;
-    delete this._virtDate;
-    delete this._virtPerformance;
-    delete this._isCallingTimerHandlers;
-    delete this._virtTimeToAdvanceMS;
-    delete this._timeoutWorker;
-    delete this._realTimeoutFuncs;
-    delete this._realTimeoutFuncsIdCntr;
-};
 
 TimeVirtualizer.prototype.virtualize = function() {
     this._virtualized = true;
@@ -310,7 +281,6 @@ TimeVirtualizer.prototype.realDateNow = function() {
 };
 
 TimeVirtualizer.prototype._onTimeoutWorkerMessage = function(event) {
-    // TODO need to handle this well in time virtualizer destroy()
     if (event.data.name === 'immediateTimeout') {
 
         var durationMS = this._virtTimeToAdvanceMS;
@@ -358,7 +328,7 @@ TimeVirtualizer.prototype.virtDateNow = function() {
 
 TimeVirtualizer.prototype._requestAnimationFrame = function(callback) {
     var virtAnimationFrameRequest =
-        new TimeVirtualizer.AnimationFrameRequest(
+        new AnimationFrameRequest(
             this._reals.requestAnimationFrame, this._cancelAnimationFrame,
             callback
         );
@@ -398,7 +368,7 @@ TimeVirtualizer.prototype._setInterval = function(func, delayMS) {
     for (var i = 2; i < arguments.length; ++i) {
         funcParams.push(arguments[i]);
     }
-    var timeout = new TimeVirtualizer.Timeout(
+    var timeout = new Timeout(
         this._reals.setInterval, this._clearInterval,
         true, delayMS, func, funcParams);
     timeout.virtFireTSMS = this._virtTSMS + delayMS;
@@ -438,7 +408,7 @@ TimeVirtualizer.prototype._setTimeout = function(func, delayMS) {
     for (var i = 2; i < arguments.length; ++i) {
         funcParams.push(arguments[i]);
     }
-    var timeout = new TimeVirtualizer.Timeout(
+    var timeout = new Timeout(
         this._reals.setTimeout, this._clearTimeout,
         false, delayMS, func, funcParams
     );
@@ -457,24 +427,34 @@ TimeVirtualizer.prototype._clearTimeout = function(timeoutId) {
         if ((!inst.getIsPeriodic()) && (inst.getId() === timeoutId)) {
             timeoutIx = i;
             break;
-        } } if (timeoutIx === -1) { return; } var timeout = this._timeouts[timeoutIx]; this._reals.clearTimeout.call(window, timeout.getId());
+        }
+    }
+    if (timeoutIx === -1) {
+        return;
+    }
+    var timeout = this._timeouts[timeoutIx];
+    this._reals.clearTimeout.call(window, timeout.getId());
     timeout.destroy();
     this._timeouts.splice(timeoutIx, 1);
 };
 
 
-TimeVirtualizer.VirtDate = require('./VirtDate');
-TimeVirtualizer.Performance = require('./Performance');
-TimeVirtualizer.Timeout = require('./Timeout');
-TimeVirtualizer.AnimationFrameRequest = require('./AnimationFrameRequest');
+var VirtDate = require('./VirtDate');
+var Performance = require('./Performance');
+var Timeout = require('./Timeout');
+var AnimationFrameRequest = require('./AnimationFrameRequest');
 
 window.timeVirtualizer = new TimeVirtualizer();
 })();
 
-},{"./AnimationFrameRequest":1,"./Performance":2,"./Timeout":4,"./Util":5,"./VirtDate":6,"./Worker":7}],4:[function(require,module,exports){
+},{"./AnimationFrameRequest":1,"./Performance":2,"./TimeEnvNormalizer.js":3,"./Timeout":5,"./Util":6,"./VirtDate":7,"./Worker.js":8,"./WorkerMaker.js":9}],5:[function(require,module,exports){
+module.exports = Timeout;
+
+var isUndefOrNull = require('./Util').isUndefOrNull;
+
 // realFunc : real setInterval or real setTimeout
 // killMeVirtualizerFunc: virtualized clearInterval or clearTimeout
-var Timeout = function(realSetFunc, killMeVirtualizerFunc, isPeriodic,
+function Timeout(realSetFunc, killMeVirtualizerFunc, isPeriodic,
     delayMS, callback, parameters) {
     // Id should be equal to real to allow user to cancel timeout after
     // unvirtualization is performed.
@@ -574,9 +554,13 @@ Timeout.prototype.destroy = function() {
     delete this._virtFireTSMS;
 };
 
-module.exports = Timeout;
 
-},{}],5:[function(require,module,exports){
+},{"./Util":6}],6:[function(require,module,exports){
+exports.assert = assert;
+exports.isUndefOrNull = isUndefOrNull;
+exports.isString = isString;
+exports.nowOffset = nowOffset;
+
 function assert(assertion, msg) {
     if (!assertion) {
         throw new Error(msg);
@@ -596,13 +580,10 @@ if (window.performance.timing && window.performance.timing.navigationStart){
     nowOffset = window.performance.timing.navigationStart;
 }
 
-exports.assert = assert;
-exports.isUndefOrNull = isUndefOrNull;
-exports.isString = isString;
-exports.nowOffset = nowOffset;
+},{}],7:[function(require,module,exports){
+module.exports = VirtDate;
 
-},{}],6:[function(require,module,exports){
-var VirtDate = function(timeVirtualizer) {
+function VirtDate(timeVirtualizer) {
     this._timeVirtualizer = timeVirtualizer;
     this._realDate = window.Date;
     this._realDateNow = window.Date.now;
@@ -623,7 +604,7 @@ VirtDate.prototype.realNow = function() {
 
 VirtDate.prototype.now = function() {
     if (this._virtualized) {
-        return this._getVirtTSMS();
+        return this._timeVirtualizer.getVirtTSMS();
     } else {
         return this._realDateNow.call(this._realDate);
     }
@@ -640,21 +621,38 @@ VirtDate.prototype.unVirtualize = function() {
     this._virtualized = false;
     window.Date.now = this._realDateNow;
 };
-module.exports = VirtDate;
 
-},{}],7:[function(require,module,exports){
-onmessage = function(event) { 
-    if (event.data.name === 'immediateTimeout') { 
-        setTimeout(function() { 
-            postMessage({ name: 'immediateTimeout' }); 
-        }, 0); 
-    } else if (event.data.name === 'setTimeout') { 
-        setTimeout(function() { 
-            postMessage(event.data); 
-        }, event.data.delayMS); 
+},{}],8:[function(require,module,exports){
+var onmessage = function(event) {
+    if (event.data.name === 'immediateTimeout') {
+        setTimeout(function() {
+            postMessage({ name: 'immediateTimeout' });
+        }, 0);
+    } else if (event.data.name === 'setTimeout') {
+        setTimeout(function() {
+            postMessage(event.data);
+        }, event.data.delayMS);
     }
 };
 
 module.exports = onmessage;
 
-},{}]},{},[3]);
+},{}],9:[function(require,module,exports){
+function makeWorker(script) {
+    var URL = window.URL || window.webkitURL;
+    var Blob = window.Blob;
+    var Worker = window.Worker;
+ 
+    if (!URL || !Blob || !Worker || !script) {
+        console.warn("Can't create worker");
+        return null;
+    }
+ 
+    var blob = new Blob([script]);
+    var worker = new Worker(URL.createObjectURL(blob));
+    return worker;
+}
+
+module.exports = makeWorker;
+
+},{}]},{},[4]);

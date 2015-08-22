@@ -1,14 +1,15 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-util = require('./util');
-assert = util.assert;
-isUndefOrNull = util.isUndefOrNull;
-isString = util.isString;
-nowOffset = util.nowOffset;
+module.exports = AnimationFrameRequest;
+
+var Util = require('./Util');
+var assert = Util.assert;
+var isUndefOrNull = Util.isUndefOrNull;
 
 // AnimationFrameRequest
 // killMeFunc timeVirtualizer.(animFrameRequest id)
-_AnimationFrameRequest = function(
+function AnimationFrameRequest(
     realRequestAnimationFrameFunc, killMeVirtualizerFunc, callback) {
+
     this._realId = realRequestAnimationFrameFunc.call(
         window, this._onRealAnimationFrameFired.bind(this));
     this._callback = callback;
@@ -19,22 +20,22 @@ _AnimationFrameRequest = function(
     this._isVirtMode = false;
 };
 
-_AnimationFrameRequest.prototype.getId = function() {
+AnimationFrameRequest.prototype.getId = function() {
     return this._realId;
 };
 
-_AnimationFrameRequest.prototype.virtFire = function() {
+AnimationFrameRequest.prototype.virtFire = function() {
     assert(this._isVirtMode, 'VirtFire in virt mode');
     this._isVirtFired = true;
     this._callCallback();
 };
 
-_AnimationFrameRequest.prototype.virtualize = function() {
+AnimationFrameRequest.prototype.virtualize = function() {
     if (this._isVirtMode) { return; }
     this._isVirtMode = true;
 };
 
-_AnimationFrameRequest.prototype.unVirtualize = function() {
+AnimationFrameRequest.prototype.unVirtualize = function() {
     if (!this._isVirtMode) { return; }
     this._isVirtMode = false;
 
@@ -43,18 +44,18 @@ _AnimationFrameRequest.prototype.unVirtualize = function() {
     }
 };
 
-_AnimationFrameRequest.prototype.isValid = function() {
+AnimationFrameRequest.prototype.isValid = function() {
     return !isUndefOrNull(this._realId);
 };
 
-_AnimationFrameRequest.prototype._onRealAnimationFrameFired = function() {
+AnimationFrameRequest.prototype._onRealAnimationFrameFired = function() {
     this._isRealFired = true;
     if (!this._isVirtMode) {
         this._callCallback();
     }
 };
 
-_AnimationFrameRequest.prototype._callCallback = function() {
+AnimationFrameRequest.prototype._callCallback = function() {
     if (this._callback) {
         this._callback(window.timeVirtualizer._virtPerformance.now());
     }
@@ -63,7 +64,7 @@ _AnimationFrameRequest.prototype._callCallback = function() {
     this._killMeVirtualizerFunc.call(window.timeVirtualizer, this.getId());
 };
 
-_AnimationFrameRequest.prototype.destroy = function() {
+AnimationFrameRequest.prototype.destroy = function() {
     delete this._realId;
     delete this._callback;
     delete this._killMeVirtualizerFunc;
@@ -72,61 +73,23 @@ _AnimationFrameRequest.prototype.destroy = function() {
     delete this._isRealFired;
 };
 
-module.exports = _AnimationFrameRequest;
-},{"./util":6}],2:[function(require,module,exports){
-_Date = function(timeVirtualizer) {
-    this._timeVirtualizer = timeVirtualizer;
-    this._realDate = window.Date;
-    this._realDateNow = window.Date.now;
-    this._virtualized = false;
-};
+},{"./Util":6}],2:[function(require,module,exports){
+module.exports = Performance;
 
-_Date.prototype.destroy = function() {
-    this.unVirtualize();
-    delete this._timeVirtualizer;
-    delete this._realDate;
-    delete this._realDateNow;
-    delete this._virtualized;
-};
+var Util = require('./Util');
+var assert = Util.assert;
+var isUndefOrNull = Util.isUndefOrNull;
+var isString = Util.isString;
+var nowOffset = Util.nowOffset;
 
-_Date.prototype.realNow = function() {
-    return this._realDateNow.call(this._realDate);
-};
-
-_Date.prototype.now = function() {
-    if (this._virtualized) {
-        return this._getVirtTSMS();
-    } else {
-        return this._realDateNow.call(this._realDate);
-    }
-};
-
-_Date.prototype.virtualize = function() {
-    if (this._virtualized) { return; }
-    this._virtualized = true;
-    window.Date.now = this.now.bind(this);
-};
-
-_Date.prototype.unVirtualize = function() {
-    if (!this._virtualized) { return; }
-    this._virtualized = false;
-    window.Date.now = this._realDateNow;
-};
-module.exports = _Date;
-},{}],3:[function(require,module,exports){
-util = require('./util');
-assert = util.assert;
-isUndefOrNull = util.isUndefOrNull;
-isString = util.isString;
-nowOffset = util.nowOffset;
-
-_Performance = function(timeVirtualizer) {
+function Performance(timeVirtualizer) {
     this._timeVirtualizer = timeVirtualizer;
     this._realPerformance = window.performance;
     this._realPerformanceNow = window.performance.now;
     this._virtualized = false;
 };
-_Performance.prototype.destroy = function() {
+
+Performance.prototype.destroy = function() {
     this.unVirtualize();
     delete this._timeVirtualizer;
     delete this._realPerformance;
@@ -134,28 +97,54 @@ _Performance.prototype.destroy = function() {
     delete this._virtualized;
 };
 
-_Performance.prototype.now = function() {
+Performance.prototype.now = function() {
     if (this._virtualized) {
-        return this._timeVirtualizer.getVirtTSMS() - nowOffset + 0.0;
+        return this._timeVirtualizer.virtDateNow() - nowOffset + 0.0;
     } else {
         return this._realPerformanceNow.call(this._realPerformance);
     }
 };
 
-_Performance.prototype.virtualize = function() {
+Performance.prototype.virtualize = function() {
     if (this._virtualized) { return; }
     this._virtualized = true;
     window.performance.now = this.now.bind(this);
 };
 
-_Performance.prototype.unVirtualize = function() {
+Performance.prototype.unVirtualize = function() {
     if (!this._virtualized) { return; }
     this._virtualized = false;
     window.performance.now = this._realPerformanceNow;
 };
 
-module.exports = _Performance;
-},{"./util":6}],4:[function(require,module,exports){
+
+},{"./Util":6}],3:[function(require,module,exports){
+var Util = require('./Util');
+var isUndefOrNull = Util.isUndefOrNull;
+var nowOffset = Util.nowOffset;
+
+if (isUndefOrNull(window.performance)){
+    window.performance = {};
+}
+
+if(!window.performance.now) {
+    window.performance.now = function(){
+        return Date.now() - nowOffset;
+    };
+}
+
+if(!window.requestAnimationFrame) {
+    window.requestAnimationFrame = 
+        window.mozRequestAnimationFrame ||
+        window.webkitRequestAnimationFrame ||
+        window.msRequestAnimationFrame;
+}
+
+if(!window.cancelAnimationFrame) {
+    window.cancelAnimationFrame = window.mozCancelAnimationFrame;
+}
+
+},{"./Util":6}],4:[function(require,module,exports){
 /*
  * TimeVirtualizer allows to move into/out of virtual time mode.
  * Time is advanced manually using advanceTimeMS() method
@@ -175,48 +164,25 @@ module.exports = _Performance;
 
 (function() {
 
-util = require('./util');
-assert = util.assert;
-isUndefOrNull = util.isUndefOrNull;
-isString = util.isString;
-nowOffset = util.nowOffset;
+var Util = require('./Util');
+var assert = Util.assert;
+var isUndefOrNull = Util.isUndefOrNull;
+var isString = Util.isString;
 
-if (isUndefOrNull(window.performance)){
-    window.performance = {};
-}
-
-if(!window.performance.now) {
-    window.performance.now = function(){
-        return Date.now() - nowOffset;
-    };
-}
+require('./TimeEnvNormalizer');
+var work = require('webworkify');
+console.log(work);
 
 var LOG_TAG = '[TimeVirtualizer]';
-
-function makeWorker(script) {
-    var URL = window.URL || window.webkitURL;
-    var Blob = window.Blob;
-    var Worker = window.Worker;
- 
-    if (!URL || !Blob || !Worker || !script) {
-        return null;
-    }
- 
-    var blob = new Blob([script]);
-    var worker = new Worker(URL.createObjectURL(blob));
-    return worker;
-}
-
-var workerText = "onmessage = function(event) { if (event.data.name === 'immediateTimeout') { setTimeout(function() { postMessage({ name: 'immediateTimeout' }); }, 0); } else if (event.data.name === 'setTimeout') { setTimeout(function() { postMessage(event.data); }, event.data.delayMS); }};";
 
 function TimeVirtualizer() {
     this._virtualized = false;
     this._timeouts = [];
     this._requestAnimFrames = [];
     this._virtTSMS = 0;
-    this._isCallingTimerHandlers = false;
     this._virtTimeToAdvanceMS = 0;
-    this._timeoutWorker = makeWorker(workerText);
+    // this._timeoutWorker = makeWorker(workerText);
+    this._timeoutWorker = work(require('./Worker'));
     this._timeoutWorker.onmessage = this._onTimeoutWorkerMessage.bind(this);
     this._realTimeoutFuncs = {};
     this._realTimeoutFuncsIdCntr = 0;
@@ -231,14 +197,8 @@ function TimeVirtualizer() {
         performance : null
     };
 
-    this._reals.requestAnimationFrame =
-        window.requestAnimationFrame ||
-        window.mozRequestAnimationFrame ||
-        window.webkitRequestAnimationFrame ||
-        window.msRequestAnimationFrame;
-    this._reals.cancelAnimationFrame =
-        window.cancelAnimationFrame ||
-        window.mozCancelAnimationFrame;
+    this._reals.requestAnimationFrame = window.requestAnimationFrame;
+    this._reals.cancelAnimationFrame = window.cancelAnimationFrame;
     this._reals.setInterval = window.setInterval;
     this._reals.clearInterval = window.clearInterval;
     this._reals.setTimeout = window.setTimeout;
@@ -252,35 +212,9 @@ function TimeVirtualizer() {
     window.clearInterval = this._clearInterval.bind(this);
     window.setTimeout = this._setTimeout.bind(this);
     window.clearTimeout = this._clearTimeout.bind(this);
-    this._virtDate = new TimeVirtualizer._Date(this);
-    this._virtPerformance = new TimeVirtualizer._Performance(this);
+    this._virtDate = new VirtDate(this);
+    this._virtPerformance = new Performance(this);
 }
-
-// XXX this is not tested and probably broken
-TimeVirtualizer.prototype.destroy = function() {
-    this.unVirtualize();
-    window.requestAnimationFrame = this._reals.requestAnimationFrame;
-    window.cancelAnimationFrame = this._reals.cancelAnimationFrame;
-    window.setInterval = this._reals.setInterval;
-    window.clearInterval = this._reals.clearInterval;
-    window.setTimeout = this._reals.setTimeout;
-    window.clearTimeout = this._reals.clearTimeout;
-
-    this._timeoutWorker.terminate();
-
-    delete this._timeouts;
-    delete this._requestAnimFrames;
-    delete this._virtTSMS;
-    delete this._virtualized;
-    delete this._reals;
-    delete this._virtDate;
-    delete this._virtPerformance;
-    delete this._isCallingTimerHandlers;
-    delete this._virtTimeToAdvanceMS;
-    delete this._timeoutWorker;
-    delete this._realTimeoutFuncs;
-    delete this._realTimeoutFuncsIdCntr;
-};
 
 TimeVirtualizer.prototype.virtualize = function() {
     this._virtualized = true;
@@ -348,7 +282,6 @@ TimeVirtualizer.prototype.realDateNow = function() {
 };
 
 TimeVirtualizer.prototype._onTimeoutWorkerMessage = function(event) {
-    // TODO need to handle this well in time virtualizer destroy()
     if (event.data.name === 'immediateTimeout') {
 
         var durationMS = this._virtTimeToAdvanceMS;
@@ -383,20 +316,20 @@ TimeVirtualizer.prototype._advanceTimeMSInSafeContext = function(durationMS) {
     for(var i = 0; i < timeoutsToProc.length; ++i) {
         var timeout = timeoutsToProc[i];
         if ((timeout.virtFireTSMS <= this._virtTSMS) && timeout.isValid()) {
-            timeout.virtFireTSMS = this._virtTSMS + timeout.getDelayMS();
+            timeout.virtFireTSMS += timeout.getDelayMS();
             timeout.virtFire();
         }
     }
 };
 
 // Virtual timestamp in milliseconds
-TimeVirtualizer.prototype.getVirtTSMS = function() {
+TimeVirtualizer.prototype.virtDateNow = function() {
     return this._virtTSMS;
 };
 
 TimeVirtualizer.prototype._requestAnimationFrame = function(callback) {
     var virtAnimationFrameRequest =
-        new TimeVirtualizer._AnimationFrameRequest(
+        new AnimationFrameRequest(
             this._reals.requestAnimationFrame, this._cancelAnimationFrame,
             callback
         );
@@ -436,7 +369,7 @@ TimeVirtualizer.prototype._setInterval = function(func, delayMS) {
     for (var i = 2; i < arguments.length; ++i) {
         funcParams.push(arguments[i]);
     }
-    var timeout = new TimeVirtualizer._Timeout(
+    var timeout = new Timeout(
         this._reals.setInterval, this._clearInterval,
         true, delayMS, func, funcParams);
     timeout.virtFireTSMS = this._virtTSMS + delayMS;
@@ -476,7 +409,7 @@ TimeVirtualizer.prototype._setTimeout = function(func, delayMS) {
     for (var i = 2; i < arguments.length; ++i) {
         funcParams.push(arguments[i]);
     }
-    var timeout = new TimeVirtualizer._Timeout(
+    var timeout = new Timeout(
         this._reals.setTimeout, this._clearTimeout,
         false, delayMS, func, funcParams
     );
@@ -497,8 +430,9 @@ TimeVirtualizer.prototype._clearTimeout = function(timeoutId) {
             break;
         }
     }
-    if (timeoutIx === -1) { return; }
-
+    if (timeoutIx === -1) {
+        return;
+    }
     var timeout = this._timeouts[timeoutIx];
     this._reals.clearTimeout.call(window, timeout.getId());
     timeout.destroy();
@@ -506,17 +440,22 @@ TimeVirtualizer.prototype._clearTimeout = function(timeoutId) {
 };
 
 
-TimeVirtualizer._Date = require('./Date');
-TimeVirtualizer._Performance = require('./Performance');
-TimeVirtualizer._Timeout = require('./Timeout');
-TimeVirtualizer._AnimationFrameRequest = require('./AnimationFrameRequest');
+var VirtDate = require('./VirtDate');
+var Performance = require('./Performance');
+var Timeout = require('./Timeout');
+var AnimationFrameRequest = require('./AnimationFrameRequest');
 
 window.timeVirtualizer = new TimeVirtualizer();
 })();
-},{"./AnimationFrameRequest":1,"./Date":2,"./Performance":3,"./Timeout":5,"./util":6}],5:[function(require,module,exports){
+
+},{"./AnimationFrameRequest":1,"./Performance":2,"./TimeEnvNormalizer":3,"./Timeout":5,"./Util":6,"./VirtDate":7,"./Worker":8,"webworkify":9}],5:[function(require,module,exports){
+module.exports = Timeout;
+
+var isUndefOrNull = require('./Util').isUndefOrNull;
+
 // realFunc : real setInterval or real setTimeout
 // killMeVirtualizerFunc: virtualized clearInterval or clearTimeout
-_Timeout = function(realSetFunc, killMeVirtualizerFunc, isPeriodic,
+function Timeout(realSetFunc, killMeVirtualizerFunc, isPeriodic,
     delayMS, callback, parameters) {
     // Id should be equal to real to allow user to cancel timeout after
     // unvirtualization is performed.
@@ -534,19 +473,19 @@ _Timeout = function(realSetFunc, killMeVirtualizerFunc, isPeriodic,
     this._virtFireTSMS = 0;
 };
 
-_Timeout.prototype.getId = function() {
+Timeout.prototype.getId = function() {
     return this._realId;
 };
 
-_Timeout.prototype.getIsPeriodic = function() {
+Timeout.prototype.getIsPeriodic = function() {
     return this._isPeriodic;
 };
 
-_Timeout.prototype.getDelayMS = function() {
+Timeout.prototype.getDelayMS = function() {
     return this._delayMS;
 };
 
-Object.defineProperty(_Timeout.prototype, 'virtFireTSMS', {
+Object.defineProperty(Timeout.prototype, 'virtFireTSMS', {
     get : function() {
         return this._virtFireTSMS;
     },
@@ -555,18 +494,18 @@ Object.defineProperty(_Timeout.prototype, 'virtFireTSMS', {
     }
 });
 
-_Timeout.prototype.virtFire = function() {
+Timeout.prototype.virtFire = function() {
     this._isVirtFired = true;
     this._callCallback();
 };
 
-_Timeout.prototype.virtualize = function() {
+Timeout.prototype.virtualize = function() {
     if (this._isVirtMode) { return; }
 
     this._isVirtMode = true;
 };
 
-_Timeout.prototype.unVirtualize = function() {
+Timeout.prototype.unVirtualize = function() {
     if (!this._isVirtMode) { return; }
 
     this._isVirtMode = false;
@@ -575,18 +514,18 @@ _Timeout.prototype.unVirtualize = function() {
     }
 };
 
-_Timeout.prototype.isValid = function() {
+Timeout.prototype.isValid = function() {
     return !isUndefOrNull(this._realId);
 };
 
-_Timeout.prototype._onRealTimeoutFired = function() {
+Timeout.prototype._onRealTimeoutFired = function() {
     this._isRealFired = true;
     if (!this._isVirtMode) {
         this._callCallback();
     }
 };
 
-_Timeout.prototype._callCallback = function() {
+Timeout.prototype._callCallback = function() {
     if (this._callback) {
         if (this._parameters.length) {
             this._callback.apply(null, this._parameters);
@@ -603,7 +542,7 @@ _Timeout.prototype._callCallback = function() {
     }
 };
 
-_Timeout.prototype.destroy = function() {
+Timeout.prototype.destroy = function() {
     delete this._realId;
     delete this._killMeVirtualizerFunc;
     delete this._isPeriodic;
@@ -616,8 +555,13 @@ _Timeout.prototype.destroy = function() {
     delete this._virtFireTSMS;
 };
 
-module.exports = _Timeout;
-},{}],6:[function(require,module,exports){
+
+},{"./Util":6}],6:[function(require,module,exports){
+exports.assert = assert;
+exports.isUndefOrNull = isUndefOrNull;
+exports.isString = isString;
+exports.nowOffset = nowOffset;
+
 function assert(assertion, msg) {
     if (!assertion) {
         throw new Error(msg);
@@ -632,23 +576,129 @@ function isString(val) {
     return typeof val === 'string';
 }
 
-if (isUndefOrNull(window.performance)){
-    window.performance = {};
-}
-
 var nowOffset = Date.now();
 if (window.performance.timing && window.performance.timing.navigationStart){
     nowOffset = window.performance.timing.navigationStart;
 }
 
-exports.assert = assert;
-exports.isUndefOrNull = isUndefOrNull;
-exports.isString = isString;
-exports.nowOffset = nowOffset;
 },{}],7:[function(require,module,exports){
+module.exports = VirtDate;
+
+function VirtDate(timeVirtualizer) {
+    this._timeVirtualizer = timeVirtualizer;
+    this._realDate = window.Date;
+    this._realDateNow = window.Date.now;
+    this._virtualized = false;
+};
+
+VirtDate.prototype.destroy = function() {
+    this.unVirtualize();
+    delete this._timeVirtualizer;
+    delete this._realDate;
+    delete this._realDateNow;
+    delete this._virtualized;
+};
+
+VirtDate.prototype.realNow = function() {
+    return this._realDateNow.call(this._realDate);
+};
+
+VirtDate.prototype.now = function() {
+    if (this._virtualized) {
+        return this._timeVirtualizer.getVirtTSMS();
+    } else {
+        return this._realDateNow.call(this._realDate);
+    }
+};
+
+VirtDate.prototype.virtualize = function() {
+    if (this._virtualized) { return; }
+    this._virtualized = true;
+    window.Date.now = this.now.bind(this);
+};
+
+VirtDate.prototype.unVirtualize = function() {
+    if (!this._virtualized) { return; }
+    this._virtualized = false;
+    window.Date.now = this._realDateNow;
+};
+
+},{}],8:[function(require,module,exports){
+module.exports = function(self) {
+    self.addEventListener('message', function(event) {
+        if (event.data.name === 'immediateTimeout') {
+            setTimeout(function() {
+                postMessage({ name: 'immediateTimeout' });
+            }, 0);
+        } else if (event.data.name === 'setTimeout') {
+            setTimeout(function() {
+                postMessage(event.data);
+            }, event.data.delayMS);
+        }
+    });
+};
+
+},{}],9:[function(require,module,exports){
+var bundleFn = arguments[3];
+var sources = arguments[4];
+var cache = arguments[5];
+
+var stringify = JSON.stringify;
+
+module.exports = function (fn) {
+    var keys = [];
+    var wkey;
+    var cacheKeys = Object.keys(cache);
+    
+    for (var i = 0, l = cacheKeys.length; i < l; i++) {
+        var key = cacheKeys[i];
+        if (cache[key].exports === fn) {
+            wkey = key;
+            break;
+        }
+    }
+    
+    if (!wkey) {
+        wkey = Math.floor(Math.pow(16, 8) * Math.random()).toString(16);
+        var wcache = {};
+        for (var i = 0, l = cacheKeys.length; i < l; i++) {
+            var key = cacheKeys[i];
+            wcache[key] = key;
+        }
+        sources[wkey] = [
+            Function(['require','module','exports'], '(' + fn + ')(self)'),
+            wcache
+        ];
+    }
+    var skey = Math.floor(Math.pow(16, 8) * Math.random()).toString(16);
+    
+    var scache = {}; scache[wkey] = wkey;
+    sources[skey] = [
+        Function(['require'],'require(' + stringify(wkey) + ')(self)'),
+        scache
+    ];
+    
+    var src = '(' + bundleFn + ')({'
+        + Object.keys(sources).map(function (key) {
+            return stringify(key) + ':['
+                + sources[key][0]
+                + ',' + stringify(sources[key][1]) + ']'
+            ;
+        }).join(',')
+        + '},{},[' + stringify(skey) + '])'
+    ;
+    
+    var URL = window.URL || window.webkitURL || window.mozURL || window.msURL;
+    
+    return new Worker(URL.createObjectURL(
+        new Blob([src], { type: 'text/javascript' })
+    ));
+};
+
+},{}],10:[function(require,module,exports){
 $(document).ready(function(){
 	//time virtualizer stuff
-	require('../lib/TimeVirtualizer');
+	require('../../lib/TimeVirtualizer');
 
 	timeVirtualizer.virtualize();
 	var advanceMS = 10;
@@ -660,7 +710,7 @@ $(document).ready(function(){
 	//can change the speed of ingame time
 	var intervalId = timeVirtualizer._reals.setInterval.call(window, advanceTime, 10);
 
-	//Snake game code mostly taken from 
+	//Snake game code mostly taken from
 	//http://thecodeplayer.com/walkthrough/html5-game-tutorial-make-a-snake-game-using-html5-canvas-jquery
 
 	//Canvas stuff
@@ -668,26 +718,26 @@ $(document).ready(function(){
 	var ctx = canvas.getContext("2d");
 	var w = $("#canvas").width();
 	var h = $("#canvas").height();
-	
+
 	var cw = 10;
 	var d;
 	var food;
 	var score;
-	
+
 	var snake_array; //an array of cells to make up the snake
-	
+
 	function init()
 	{
 		d = "right"; //default direction
 		create_snake();
 		create_food();
 		score = 0;
-		
+
 		if(typeof game_loop != "undefined") clearInterval(game_loop);
 		game_loop = setInterval(paint, 60);
 	}
 	init();
-	
+
 	function create_snake()
 	{
 		var length = 5;
@@ -697,16 +747,16 @@ $(document).ready(function(){
 			snake_array.push({x: i, y:0});
 		}
 	}
-	
+
 	//Lets create the food now
 	function create_food()
 	{
 		food = {
-			x: Math.round(Math.random()*(w-cw)/cw), 
-			y: Math.round(Math.random()*(h-cw)/cw), 
+			x: Math.round(Math.random()*(w-cw)/cw),
+			y: Math.round(Math.random()*(h-cw)/cw),
 		};
 	}
-	
+
 	function paint()
 	{
 		//To avoid the snake trail we need to paint the BG on every frame
@@ -714,15 +764,15 @@ $(document).ready(function(){
 		ctx.fillRect(0, 0, w, h);
 		ctx.strokeStyle = "black";
 		ctx.strokeRect(0, 0, w, h);
-		
+
 		var nx = snake_array[0].x;
 		var ny = snake_array[0].y;
-		
+
 		if(d == "right") nx++;
 		else if(d == "left") nx--;
 		else if(d == "up") ny--;
 		else if(d == "down") ny++;
-		
+
 		//This will restart the game if the snake hits the wall or bumps into its body
 		if(nx == -1 || nx == w/cw || ny == -1 || ny == h/cw || check_collision(nx, ny, snake_array))
 		{
@@ -730,7 +780,7 @@ $(document).ready(function(){
 			init();
 			return;
 		}
-		
+
 		//The movement code
 		//The logic is simple
 		//If the new head position matches with that of the food,
@@ -750,14 +800,14 @@ $(document).ready(function(){
 		}
 
 		snake_array.unshift(tail); //puts back the tail as the first cell
-		
+
 		for(var i = 0; i < snake_array.length; i++)
 		{
 			var c = snake_array[i];
 			//Lets paint 10px wide cells
 			paint_cell(c.x, c.y);
 		}
-		
+
 		//Lets paint the food
 		paint_cell(food.x, food.y);
 		//Lets paint the score
@@ -767,7 +817,7 @@ $(document).ready(function(){
 		var speed_text = "Speed: " + advanceMS*10 + "% of normal";
 		ctx.fillText(speed_text, 50, h-5);
 	}
-	
+
 	function paint_cell(x, y)
 	{
 		ctx.fillStyle = "blue";
@@ -775,7 +825,7 @@ $(document).ready(function(){
 		ctx.strokeStyle = "white";
 		ctx.strokeRect(x*cw, y*cw, cw, cw);
 	}
-	
+
 	function check_collision(x, y, array)
 	{
 		//This function will check if the provided x/y coordinates exist
@@ -787,7 +837,7 @@ $(document).ready(function(){
 		}
 		return false;
 	}
-	
+
 	//Keyboard controls
 	$(document).keydown(function(e){
 		var key = e.which;
@@ -807,9 +857,10 @@ $(document).ready(function(){
 		} else if (key == "83") {
 			console.log("unvirtualizing");
 			timeVirtualizer._reals.clearInterval.call(window, intervalId);
+			advanceMS = 10;
 			timeVirtualizer.unVirtualize();
 		}
 	})
 });
 
-},{"../lib/TimeVirtualizer":4}]},{},[7]);
+},{"../../lib/TimeVirtualizer":4}]},{},[10]);
