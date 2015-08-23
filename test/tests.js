@@ -25,43 +25,41 @@ describe("Time advancing function", function() {
         timeVirtualizer.virtualize();
     });
 
-    afterAll(function() {
-        timeVirtualizer.unVirtualize();
-    });
+	var timerCallback;
+	var timeoutDelay;
 
-    it("changes virtual time", function() {
+	beforeEach(function(done) {
+        timerCallback = jasmine.createSpy("timerCallback");
+		timeoutDelay = 10;
+        setTimeout(timerCallback, timeoutDelay);
 
-        var formerTS = timeVirtualizer.virtDateNow();
-        // The following string should actually call timeVirtualizer.advanceTimeMS
-        // The reason it doesn't is that jasmine seems to not work with web workers
-        timeVirtualizer._advanceTimeMSInSafeContext(10000);
-        expect(timeVirtualizer.virtDateNow()).toEqual(formerTS + 10000);
-    });
+        timeVirtualizer.advanceTimeMS(timeoutDelay+1);
+        spyOn(timeVirtualizer._timeoutWorker, 'onmessage').and.callFake(function (event) {
+            timeVirtualizer._onTimeoutWorkerMessage(event);
+            done();
+        });
+	});
 
     it("triggers timeouts", function() {
-        var timerCallback = jasmine.createSpy("timerCallback");
-        var timeoutID = setTimeout(timerCallback, 100);
-
-        // Same thing with timeVirtualizer.advanceTimeMS here
-        timeVirtualizer._advanceTimeMSInSafeContext(101);
         expect(timerCallback).toHaveBeenCalled();
     });
 
-    it("triggers intervals", function() {
-        var timerCallback = jasmine.createSpy("timerCallback");
-        var timeoutID = setInterval(timerCallback, 100);
-
-        // Same thing with timeVirtualizer.advanceTimeMS here
-        timeVirtualizer._advanceTimeMSInSafeContext(150);
-        expect(timerCallback.calls.count()).toBe(1);
-        timeVirtualizer._advanceTimeMSInSafeContext(51);
-        expect(timerCallback.calls.count()).toBe(2);
+    afterAll(function() {
+        timeVirtualizer.unVirtualize();
     });
 });
 
 describe("Real setTimeout function", function() {
+    beforeAll(function() {
+        timeVirtualizer.virtualize();
+    });
+
+    afterAll(function() {
+        timeVirtualizer.unVirtualize();
+    });
+
     it("should set real timeouts", function() {
-        timerCallback = jasmine.createSpy("timerCallback");
+        var timerCallback = jasmine.createSpy("timerCallback");
 
         // The following string should actually call timeVirtualizer.realSetTimeout
         // The reason it doesn't is exactly the same as with advanceTimeMS
@@ -70,5 +68,34 @@ describe("Real setTimeout function", function() {
 
         jasmine.clock().tick(101);
         expect(timerCallback).toHaveBeenCalled();
+    });
+});
+
+describe("Time advancing function", function() {
+    var formerTS;
+    var virtTimeChange;
+
+    beforeAll(function() {
+        timeVirtualizer.virtualize();
+    });
+
+    afterAll(function() {
+        timeVirtualizer.unVirtualize();
+    });
+
+	beforeEach(function(done) {
+		formerTS = timeVirtualizer.virtDateNow();
+		virtTimeChange = 10;
+
+        timeVirtualizer.advanceTimeMS(virtTimeChange);
+        spyOn(timeVirtualizer._timeoutWorker, 'onmessage').and.callFake(function (event) {
+            timeVirtualizer._onTimeoutWorkerMessage(event);
+            done();
+        });
+	});
+
+    it("advances virtual time", function() {
+        var currTS = timeVirtualizer.virtDateNow();
+        expect(currTS).toBe(formerTS + virtTimeChange);
     });
 });
