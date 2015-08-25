@@ -20,36 +20,33 @@ describe("Virtualize function", function(){
     });
 });
 
-describe("Time advancing function", function() {
+describe("advanceTimeMS function" , function () {
     beforeAll(function() {
         timeVirtualizer.virtualize();
     });
 
-	var timerCallback;
-	var timeoutDelay;
+    afterAll(function () {
+        timeVirtualizer.unVirtualize();
+    });
 
-	beforeEach(function(done) {
-        timerCallback = jasmine.createSpy("timerCallback");
-		timeoutDelay = 10;
-        setTimeout(timerCallback, timeoutDelay);
+    var timeChange = 10;
 
-        timeVirtualizer.advanceTimeMS(timeoutDelay+1);
+    beforeEach(function (done) {
+        spyOn(timeVirtualizer, "_advanceTimeMSInSafeContext");
+
+        timeVirtualizer.advanceTimeMS(timeChange);
         spyOn(timeVirtualizer._timeoutWorker, 'onmessage').and.callFake(function (event) {
             timeVirtualizer._onTimeoutWorkerMessage(event);
             done();
         });
-	});
-
-    it("triggers timeouts", function() {
-        expect(timerCallback).toHaveBeenCalled();
     });
 
-    afterAll(function() {
-        timeVirtualizer.unVirtualize();
+	it("calls _advanceTimeMSInSafeContext", function () {
+        expect(timeVirtualizer._advanceTimeMSInSafeContext).toHaveBeenCalledWith(timeChange);
     });
 });
 
-describe("Real setTimeout function", function() {
+describe("_advanceTimeMSInSafeContext function", function() {
     beforeAll(function() {
         timeVirtualizer.virtualize();
     });
@@ -57,45 +54,60 @@ describe("Real setTimeout function", function() {
     afterAll(function() {
         timeVirtualizer.unVirtualize();
     });
-
-    it("should set real timeouts", function() {
-        var timerCallback = jasmine.createSpy("timerCallback");
-
-        // The following string should actually call timeVirtualizer.realSetTimeout
-        // The reason it doesn't is exactly the same as with advanceTimeMS
-        // Therefore, this test right now is useless. It is left here as a placeholder
-        var timeoutID = timeVirtualizer._reals.setTimeout.call(window, timerCallback, 100);
-
-        jasmine.clock().tick(101);
-        expect(timerCallback).toHaveBeenCalled();
-    });
-});
-
-describe("Time advancing function", function() {
-    var formerTS;
-    var virtTimeChange;
-
-    beforeAll(function() {
-        timeVirtualizer.virtualize();
-    });
-
-    afterAll(function() {
-        timeVirtualizer.unVirtualize();
-    });
-
-	beforeEach(function(done) {
-		formerTS = timeVirtualizer.virtDateNow();
-		virtTimeChange = 10;
-
-        timeVirtualizer.advanceTimeMS(virtTimeChange);
-        spyOn(timeVirtualizer._timeoutWorker, 'onmessage').and.callFake(function (event) {
-            timeVirtualizer._onTimeoutWorkerMessage(event);
-            done();
-        });
-	});
 
     it("advances virtual time", function() {
-        var currTS = timeVirtualizer.virtDateNow();
-        expect(currTS).toBe(formerTS + virtTimeChange);
+        var formerTS = timeVirtualizer.virtDateNow();
+        var timeChange = 10;
+        timeVirtualizer._advanceTimeMSInSafeContext(timeChange);
+        expect(timeVirtualizer.virtDateNow()).toBe(formerTS + timeChange);
+    });
+
+    it("triggers timeouts", function() {
+        var timerCallback = jasmine.createSpy("timerCallback");
+        var timeoutDelay = 10;
+        setTimeout(timerCallback, timeoutDelay);
+        timeVirtualizer._advanceTimeMSInSafeContext(timeoutDelay + 1);
+        expect(timerCallback).toHaveBeenCalled();
+    });
+
+    it("triggers intervals", function () {
+        var timerCallback = jasmine.createSpy("timerCallback");
+        var timeoutDelay = 100;
+        setInterval(timerCallback, timeoutDelay);
+
+        timeVirtualizer._advanceTimeMSInSafeContext(timeoutDelay + 50);
+        expect(timerCallback.calls.count()).toBe(1);
+        timeVirtualizer._advanceTimeMSInSafeContext(timeoutDelay - 40);
+        expect(timerCallback.calls.count()).toBe(1);
+        timeVirtualizer._advanceTimeMSInSafeContext(timeoutDelay - 59);
+        expect(timerCallback.calls.count()).toBe(2);
+    });
+});
+
+describe("realSetTimeout function", function() {
+    beforeAll(function() {
+        timeVirtualizer.virtualize();
+    });
+
+    afterAll(function() {
+        timeVirtualizer.unVirtualize();
+    });
+
+    var timerCallback;
+    var timeoutDelay;
+
+    beforeEach(function (done) {
+        timeoutDelay = 10;
+        timerCallback = jasmine.createSpy("timerCallback");
+
+        timeVirtualizer.realSetTimeout(timerCallback, timeoutDelay);
+        spyOn(timeVirtualizer._timeoutWorker, 'onmessage').and.callFake(function (event) {
+            timeVirtualizer._onTimeoutWorkerMessage(event);
+            done();
+        });
+    });
+
+    it("sets real timeouts", function() {
+        expect(timerCallback).toHaveBeenCalled();
     });
 });
