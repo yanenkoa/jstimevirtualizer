@@ -8,8 +8,12 @@ describe("Virtualize function", function(){
         timeVirtualizer.unVirtualize();
     });
 
+    beforeEach(function () {
+        timeVirtualizer.unVirtualize();
+    });
+
     it("stops time", function() {
-        timerCallback = jasmine.createSpy("timerCallback");
+        var timerCallback = jasmine.createSpy("timerCallback");
         var timeoutID = setTimeout(timerCallback, 100);
 
         timeVirtualizer.virtualize();
@@ -18,6 +22,21 @@ describe("Virtualize function", function(){
 
         clearTimeout(timeoutID);
     });
+    // This doesn't work, but should. The problem may be in time
+    /*
+
+    it("proper timeouts", function() {
+        var timerCallback = jasmine.createSpy("timerCallback");
+        var timeoutID = setTimeout(timerCallback, 100);
+
+        jasmine.clock().tick(50);
+        expect(timerCallback).not.toHaveBeenCalled();
+        timeVirtualizer.virtualize();
+        expect(timerCallback).not.toHaveBeenCalled();
+        timeVirtualizer._advanceTimeMSInSafeContext(51);
+        expect(timerCallback).toHaveBeenCalled();
+    })
+    */
 });
 
 describe("advanceTimeMS function" , function () {
