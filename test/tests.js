@@ -4,11 +4,11 @@ describe("Neccessary operations", function(){
 });
 
 describe("Virtualize function", function(){
-    afterAll(function() {
+    beforeAll(function() {
         timeVirtualizer.unVirtualize();
     });
 
-    beforeEach(function () {
+    afterEach(function() {
         timeVirtualizer.unVirtualize();
     });
 
@@ -22,21 +22,43 @@ describe("Virtualize function", function(){
 
         clearTimeout(timeoutID);
     });
-    // This doesn't work, but should. The problem may be in time
-    /*
+});
 
-    it("proper timeouts", function() {
-        var timerCallback = jasmine.createSpy("timerCallback");
-        var timeoutID = setTimeout(timerCallback, 100);
+describe("Virtualize function", function () {
+    beforeAll(function() {
+        timeVirtualizer.unVirtualize();
+    });
 
-        jasmine.clock().tick(50);
-        expect(timerCallback).not.toHaveBeenCalled();
+    var foo = null;
+    var timerCallback1;
+    var timerCallback2;
+
+    beforeEach(function (done) {
+        timerCallback1 = jasmine.createSpy("timer callback 1");
+        timerCallback2 = jasmine.createSpy("timer callback 2");
+
+        setTimeout(timerCallback2, 2000);
+
+        dump(timeVirtualizer.realDateNow());
+        timeVirtualizer.realSetTimeout(timerCallback1, 1000);
+
+        // done() function in this case is not guaranteed to be called exactly after 1000 ms
+        // It will usually be 10-20 ms later than that
+        spyOn(timeVirtualizer._timeoutWorker, "onmessage").and.callFake(function () {
+            done();
+        });
+    });
+
+    it("resolves timeouts correctly", function () {
+        dump(timeVirtualizer.realDateNow());
         timeVirtualizer.virtualize();
-        expect(timerCallback).not.toHaveBeenCalled();
-        timeVirtualizer._advanceTimeMSInSafeContext(51);
-        expect(timerCallback).toHaveBeenCalled();
-    })
-    */
+        expect(timerCallback2).not.toHaveBeenCalled();
+
+        timeVirtualizer._advanceTimeMSInSafeContext(500);
+        expect(timerCallback2).not.toHaveBeenCalled();
+        timeVirtualizer._advanceTimeMSInSafeContext(500);
+        expect(timerCallback2).toHaveBeenCalled();
+    });
 });
 
 describe("advanceTimeMS function" , function () {
