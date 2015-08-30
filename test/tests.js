@@ -94,12 +94,14 @@ describe("_advanceTimeMSInSafeContext function", function() {
         var timeoutDelay = 100;
         setInterval(timerCallback, timeoutDelay);
 
-        timeVirtualizer._advanceTimeMSInSafeContext(timeoutDelay + 50);
+        timeVirtualizer._advanceTimeMSInSafeContext(150);
         expect(timerCallback.calls.count()).toBe(1);
-        timeVirtualizer._advanceTimeMSInSafeContext(timeoutDelay - 40);
-        expect(timerCallback.calls.count()).toBe(1);
-        timeVirtualizer._advanceTimeMSInSafeContext(timeoutDelay - 59);
+        timeVirtualizer._advanceTimeMSInSafeContext(60);
         expect(timerCallback.calls.count()).toBe(2);
+        timeVirtualizer._advanceTimeMSInSafeContext(80);
+        expect(timerCallback.calls.count()).toBe(2);
+        timeVirtualizer._advanceTimeMSInSafeContext(10);
+        expect(timerCallback.calls.count()).toBe(3);
     });
 });
 
