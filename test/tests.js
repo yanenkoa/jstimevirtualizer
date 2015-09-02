@@ -39,7 +39,6 @@ describe("Virtualize function", function () {
 
         timeoutID = setTimeout(timerCallback2, 2000);
 
-        dump(timeVirtualizer.realDateNow());
         timeVirtualizer.realSetTimeout(timerCallback1, 1000);
 
         // done() function in this case is not guaranteed to be called exactly after 1000 ms
@@ -50,7 +49,6 @@ describe("Virtualize function", function () {
     });
 
     it("resolves timeouts correctly", function () {
-        dump(timeVirtualizer.realDateNow());
         timeVirtualizer.virtualize();
         expect(timerCallback2).not.toHaveBeenCalled();
 
@@ -104,6 +102,24 @@ describe("_advanceTimeMSInSafeContext function", function() {
         expect(timerCallback.calls.count()).toBe(3);
 
         clearInterval(intervalID);
+    });
+
+    it("triggers intervals multiple times", function() {
+        var timerCallback1 = jasmine.createSpy("timerCallback");
+        var intervalID1 = setInterval(timerCallback1, 100);
+
+        timeVirtualizer._advanceTimeMSInSafeContext(50);
+        expect(timerCallback1.calls.count()).toBe(0);
+
+        var timerCallback2 = jasmine.createSpy("timerCallback");
+        var intervalID2 = setInterval(timerCallback2, 100);
+
+        timeVirtualizer._advanceTimeMSInSafeContext(350);
+        expect(timerCallback1.calls.count()).toBe(4);
+        expect(timerCallback2.calls.count()).toBe(3);
+
+        clearInterval(intervalID1);
+        clearInterval(intervalID2);
     });
 });
 
