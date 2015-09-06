@@ -124,22 +124,41 @@ describe("_advanceTimeMSInSafeContext function", function() {
 });
 
 describe("timeVirtualizer._timeouts array", function() {
-    it("is sorted", function(){
+    it("is always sorted", function() {
         var timerCallback1 = jasmine.createSpy("timer callback 1");
         var timerCallback2 = jasmine.createSpy("timer callback 2");
         var timerCallback3 = jasmine.createSpy("timer callback 3");
 
-        var timeoutID1 = setTimeout(timerCallback1, 2000);
-        var timeoutID2 = setTimeout(timerCallback3, 1000);
-        var timeoutID3 = setTimeout(timerCallback2, 3000);
+        var timeoutID1 = setInterval(timerCallback1, 2000);
+        var timeoutID2 = setInterval(timerCallback3, 1000);
+        var timeoutID3 = setInterval(timerCallback2, 3000);
 
-        for (var i = 0; i < timeVirtualizer.length - 1; i++) {
-            expect(timeVirtualizer._timeouts[i]).toBeLessThan(timeVirtualizer._timeouts[i+1]);
+        for (var i = 0; i < timeVirtualizer._timeouts.length - 1; i++) {
+            expect(timeVirtualizer._timeouts[i].getFireTSMS()).
+                toBeLessThan(timeVirtualizer._timeouts[i+1].getFireTSMS());
         }
 
-        clearTimeout(timeoutID1);
-        clearTimeout(timeoutID2);
-        clearTimeout(timeoutID3);
+        timeVirtualizer._advanceTimeMSInSafeContext(1000);
+        for (var i = 0; i < timeVirtualizer._timeouts.length - 1; i++) {
+            expect(timeVirtualizer._timeouts[i].getFireTSMS()).
+                toBeLessThan(timeVirtualizer._timeouts[i+1].getFireTSMS());
+        }
+
+        timeVirtualizer._advanceTimeMSInSafeContext(1000);
+        for (var i = 0; i < timeVirtualizer._timeouts.length - 1; i++) {
+            expect(timeVirtualizer._timeouts[i].getFireTSMS()).
+                toBeLessThan(timeVirtualizer._timeouts[i+1].getFireTSMS());
+        }
+
+        timeVirtualizer._advanceTimeMSInSafeContext(1000);
+        for (var i = 0; i < timeVirtualizer._timeouts.length - 1; i++) {
+            expect(timeVirtualizer._timeouts[i].getFireTSMS()).
+                toBeLessThan(timeVirtualizer._timeouts[i+1].getFireTSMS());
+        }
+
+        clearInterval(timeoutID1);
+        clearInterval(timeoutID2);
+        clearInterval(timeoutID3);
     });
 });
 
