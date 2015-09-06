@@ -129,24 +129,28 @@ describe("timeVirtualizer._timeouts array", function() {
         var timerCallback2 = jasmine.createSpy("timer callback 2");
         var timerCallback3 = jasmine.createSpy("timer callback 3");
 
-        setTimeout(timerCallback1, 2000);
-        setTimeout(timerCallback3, 1000);
-        setTimeout(timerCallback2, 3000);
+        var timeoutID1 = setTimeout(timerCallback1, 2000);
+        var timeoutID2 = setTimeout(timerCallback3, 1000);
+        var timeoutID3 = setTimeout(timerCallback2, 3000);
 
         for (var i = 0; i < timeVirtualizer.length - 1; i++) {
             expect(timeVirtualizer._timeouts[i]).toBeLessThan(timeVirtualizer._timeouts[i+1]);
         }
+
+        clearTimeout(timeoutID1);
+        clearTimeout(timeoutID2);
+        clearTimeout(timeoutID3);
     });
 });
 
-describe("setTimeout and setInterval functions", function() {
+describe("Timeouts and intervals", function() {
     afterAll(function() {
         timeVirtualizer.unVirtualize();
     });
 
     it("trigger callbacks with proper arguments in non-virtualized time", function() {
         timeVirtualizer.unVirtualize();
-        var foo = {"int" : 1};
+        var foo = {};
 
         var timerCallback = jasmine.createSpy("timer callback");
         setTimeout(timerCallback, 100, foo);
@@ -163,7 +167,6 @@ describe("setTimeout and setInterval functions", function() {
     it("trigger callbacks with proper arguments in virtualized time", function() {
         timeVirtualizer.virtualize();
         var foo = {};
-        var bar = {};
 
         var timerCallback = jasmine.createSpy("timer callback");
         setTimeout(timerCallback, 100, foo);
@@ -175,5 +178,29 @@ describe("setTimeout and setInterval functions", function() {
         expect(timerCallback).toHaveBeenCalledWith(foo);
 
         clearInterval(intervalID);
+    });
+
+    it("timeouts destroy themselves after firing in non-virtualized time", function() {
+        expect(timeVirtualizer._timeouts.length).toBe(0);
+        timeVirtualizer.unVirtualize();
+
+        var timerCallback = jasmine.createSpy("timer callback");
+        setTimeout(timerCallback, 100);
+        expect(timeVirtualizer._timeouts.length).toBe(1);
+        jasmine.clock().tick(101);
+        expect(timerCallback).toHaveBeenCalled();
+        expect(timeVirtualizer._timeouts.length).toBe(0);
+    });
+
+    it("timeouts destroy themselves after firing in virtualized time", function() {
+        expect(timeVirtualizer._timeouts.length).toBe(0);
+        timeVirtualizer.virtualize();
+
+        var timerCallback = jasmine.createSpy("timer callback");
+        setTimeout(timerCallback, 100);
+        expect(timeVirtualizer._timeouts.length).toBe(1);
+        timeVirtualizer._advanceTimeMSInSafeContext(100);
+        expect(timerCallback).toHaveBeenCalled();
+        expect(timeVirtualizer._timeouts.length).toBe(0);
     });
 });
