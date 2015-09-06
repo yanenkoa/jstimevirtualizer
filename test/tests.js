@@ -138,3 +138,42 @@ describe("timeVirtualizer._timeouts array", function() {
         }
     });
 });
+
+describe("setTimeout and setInterval functions", function() {
+    afterAll(function() {
+        timeVirtualizer.unVirtualize();
+    });
+
+    it("trigger callbacks with proper arguments in non-virtualized time", function() {
+        timeVirtualizer.unVirtualize();
+        var foo = {"int" : 1};
+
+        var timerCallback = jasmine.createSpy("timer callback");
+        setTimeout(timerCallback, 100, foo);
+        jasmine.clock().tick(101);
+        expect(timerCallback).toHaveBeenCalledWith(foo);
+
+        var intervalID = setInterval(timerCallback, 100, foo);
+        jasmine.clock().tick(101);
+        expect(timerCallback).toHaveBeenCalledWith(foo);
+
+        clearInterval(intervalID);
+    });
+
+    it("trigger callbacks with proper arguments in virtualized time", function() {
+        timeVirtualizer.virtualize();
+        var foo = {};
+        var bar = {};
+
+        var timerCallback = jasmine.createSpy("timer callback");
+        setTimeout(timerCallback, 100, foo);
+        timeVirtualizer._advanceTimeMSInSafeContext(100);
+        expect(timerCallback).toHaveBeenCalledWith(foo);
+
+        var intervalID = setInterval(timerCallback, 100, foo);
+        timeVirtualizer._advanceTimeMSInSafeContext(100);
+        expect(timerCallback).toHaveBeenCalledWith(foo);
+
+        clearInterval(intervalID);
+    });
+});
