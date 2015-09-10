@@ -2,7 +2,7 @@
 This module lets you manipulate time flow inside a JavaScript program.
 # Installation
 ## With `browserify`
-If your project uses `browserify` as a way to assemble a script file to include it in HTML page, you can install this module using `npm`:
+If your project uses `browserify` as a way to assemble a script file to include it in HTML page, the easiest way to install this module is using `npm`:
 ```
 npm install timevirtualizer
 ```
@@ -12,11 +12,11 @@ require('timevirtualizer');
 ```
 into your script file.
 ## Without `browserify`
-If your project does not use `browserify`, you can just clone this repo:
+If your project does not use `browserify`, you can use `bower`
 ```
-git clone https://github.com/yanenkoa/jstimevirtualizer.git
+bower install timevirtualizer
 ```
-and then include `lib/assembledTimeVirtualizer.js` in your HTML page.
+and then include `bower_components/timevirtualizer/dist/assembledTimeVirtualizer.js` in your HTML page.
 # Usage
 TimeVirtualizer script should be included on the page ASAP because it needs to track all the time related calls on the page.
 
