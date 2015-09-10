@@ -77,9 +77,6 @@ AnimationFrameRequest.prototype.destroy = function() {
 module.exports = Performance;
 
 var Util = require('./Util');
-var assert = Util.assert;
-var isUndefOrNull = Util.isUndefOrNull;
-var isString = Util.isString;
 var nowOffset = Util.nowOffset;
 
 function Performance(timeVirtualizer) {
@@ -171,7 +168,6 @@ var isString = Util.isString;
 
 require('./TimeEnvNormalizer');
 var work = require('webworkify');
-console.log(work);
 
 var LOG_TAG = '[TimeVirtualizer]';
 
@@ -181,7 +177,6 @@ function TimeVirtualizer() {
     this._requestAnimFrames = [];
     this._virtTSMS = 0;
     this._virtTimeToAdvanceMS = 0;
-    // this._timeoutWorker = makeWorker(workerText);
     this._timeoutWorker = work(require('./Worker'));
     this._timeoutWorker.onmessage = this._onTimeoutWorkerMessage.bind(this);
     this._realTimeoutFuncs = {};
@@ -222,7 +217,6 @@ TimeVirtualizer.prototype.virtualize = function() {
     for (var i = 0; i < this._timeouts.length; ++i) {
         var timeout = this._timeouts[i];
         timeout.virtualize();
-        timeout.virtFireTSMS = this._virtTSMS + timeout.getDelayMS();
     }
     for (var i = 0; i < this._requestAnimFrames.length; ++i) {
         var requestAnimFrame = this._requestAnimFrames[i];
@@ -299,25 +293,63 @@ TimeVirtualizer.prototype._onTimeoutWorkerMessage = function(event) {
     }
 };
 
+TimeVirtualizer.prototype._swapInTimeouts = function(a, b) {
+    var tmp = this._timeouts[a];
+    this._timeouts[a] = this._timeouts[b];
+    this._timeouts[b] = tmp;
+}
+
+TimeVirtualizer.prototype._sortTimeouts = function() {
+    // This function sorts '_timeouts' array by '_fireTSMS' parameter
+    // Insertion Sort is used because in both cases, when this function is used,
+    // it would be linear
+    var len = this._timeouts.length;
+    for (var j = 0; j < len; j++) {
+        var i;
+
+        i = j;
+        while(i+1 < len && this._timeouts[i].getFireTSMS() > this._timeouts[i+1].getFireTSMS()) {
+            this._swapInTimeouts(i, i+1);
+            i++;
+        }
+
+        i = j;
+        while(i > 0 && this._timeouts[i].getFireTSMS() < this._timeouts[i-1].getFireTSMS()) {
+            this._swapInTimeouts(i, i-1);
+            i--;
+        }
+    }
+};
+
 TimeVirtualizer.prototype._advanceTimeMSInSafeContext = function(durationMS) {
     if (!this._virtualized) { return; } // probably was unVirtualized already
 
-    this._virtTSMS += durationMS;
+    while(durationMS > 0) {
+        var timeout = this._timeouts[0];
+        // As this._timeouts is sorted, in the beginning of the array
+        // is the timeout with lowest getFireTSMS().
+        if(isUndefOrNull(timeout)) {
+            this._virtTSMS += durationMS;
+            break;
+        }
+        var proceedTime = Math.min(timeout.getFireTSMS() - this._virtTSMS, durationMS);
+        this._virtTSMS += proceedTime;
+        durationMS -= proceedTime;
+
+        if (timeout.getFireTSMS() <= this._virtTSMS && timeout.isValid()) {
+            timeout.virtFire();
+            if (timeout.getIsPeriodic()) {
+                this._sortTimeouts();
+            }
+        }
+    }
+
     // Extra protection from anim frames callbacks side effects needed
     var animFramesToFire = this._requestAnimFrames.slice();
     for(var i = 0; i < animFramesToFire.length; ++i) {
         var animFrame = animFramesToFire[i];
         if (animFrame.isValid()) {
             animFrame.virtFire();
-        }
-    }
-
-    var timeoutsToProc = this._timeouts.slice();
-    for(var i = 0; i < timeoutsToProc.length; ++i) {
-        var timeout = timeoutsToProc[i];
-        if ((timeout.virtFireTSMS <= this._virtTSMS) && timeout.isValid()) {
-            timeout.virtFireTSMS += timeout.getDelayMS();
-            timeout.virtFire();
         }
     }
 };
@@ -357,75 +389,32 @@ TimeVirtualizer.prototype._cancelAnimationFrame = function(animFrameId) {
     this._requestAnimFrames.splice(virtAnimationFrameRequestIx, 1);
 };
 
-TimeVirtualizer.prototype._setInterval = function(func, delayMS) {
+TimeVirtualizer.prototype._setIntervalOrTimeout = function(func, delayMS, isPeriodic, funcParams) {
     if (isString(func)) {
-        console.warn(LOG_TAG, 'Non function arguments to setInterval are not supported');
+        console.warn(LOG_TAG, 'Non function arguments to setTimeout are not supported');
         return;
     }
     if (isUndefOrNull(delayMS)) {
         delayMS = 0;
     }
-    var funcParams = [];
-    for (var i = 2; i < arguments.length; ++i) {
-        funcParams.push(arguments[i]);
-    }
-    var timeout = new Timeout(
-        this._reals.setInterval, this._clearInterval,
-        true, delayMS, func, funcParams);
-    timeout.virtFireTSMS = this._virtTSMS + delayMS;
+
+    var timeout = new Timeout(isPeriodic, delayMS, func, funcParams);
+
     if (this._virtualized) {
         timeout.virtualize();
     }
+
     this._timeouts.push(timeout);
+    this._sortTimeouts();
+
     return timeout.getId();
 };
 
-TimeVirtualizer.prototype._clearInterval = function(timeoutId) {
+TimeVirtualizer.prototype._clearIntervalOrTimeout = function(timeoutId, isPeriodic) {
     var timeoutIx = -1;
     for (var i = 0; i < this._timeouts.length; ++i) {
         var inst = this._timeouts[i];
-        if (inst.getIsPeriodic() && (inst.getId() === timeoutId)) {
-            timeoutIx = i;
-            break;
-        }
-    }
-    if (timeoutIx === -1) { return; }
-
-    var timeout = this._timeouts[timeoutIx];
-    this._reals.clearInterval.call(window, timeout.getId());
-    timeout.destroy();
-    this._timeouts.splice(timeoutIx, 1);
-};
-
-TimeVirtualizer.prototype._setTimeout = function(func, delayMS) {
-    if (isString(func)) {
-        console.warn(LOG_TAG, 'Non function arguments to setInterval are not supported');
-        return;
-    }
-    if (isUndefOrNull(delayMS)) {
-        delayMS = 0;
-    }
-    var funcParams = [];
-    for (var i = 2; i < arguments.length; ++i) {
-        funcParams.push(arguments[i]);
-    }
-    var timeout = new Timeout(
-        this._reals.setTimeout, this._clearTimeout,
-        false, delayMS, func, funcParams
-    );
-    if (this._virtualized) {
-        timeout.virtualize();
-    }
-    timeout.virtFireTSMS = this._virtTSMS + delayMS;
-    this._timeouts.push(timeout);
-    return timeout.getId();
-};
-
-TimeVirtualizer.prototype._clearTimeout = function(timeoutId) {
-    var timeoutIx = -1;
-    for (var i = 0; i < this._timeouts.length; ++i) {
-        var inst = this._timeouts[i];
-        if ((!inst.getIsPeriodic()) && (inst.getId() === timeoutId)) {
+        if ((inst.getIsPeriodic() == isPeriodic) && (inst.getId() === timeoutId)) {
             timeoutIx = i;
             break;
         }
@@ -434,9 +423,38 @@ TimeVirtualizer.prototype._clearTimeout = function(timeoutId) {
         return;
     }
     var timeout = this._timeouts[timeoutIx];
-    this._reals.clearTimeout.call(window, timeout.getId());
+    var realClearFunc;
+    if (isPeriodic) {
+        this._reals.clearInterval.call(window, timeout.getId());
+    } else {
+        this._reals.clearTimeout.call(window, timeout.getId());
+    }
     timeout.destroy();
     this._timeouts.splice(timeoutIx, 1);
+};
+
+TimeVirtualizer.prototype._setInterval = function(func, delayMS) {
+    var funcParams = [];
+    for (var i = 2; i < arguments.length; ++i) {
+        funcParams.push(arguments[i]);
+    }
+    return this._setIntervalOrTimeout(func, delayMS, true, funcParams);
+};
+
+TimeVirtualizer.prototype._clearInterval = function(timeoutId) {
+    this._clearIntervalOrTimeout(timeoutId, true);
+};
+
+TimeVirtualizer.prototype._setTimeout = function(func, delayMS) {
+    var funcParams = [];
+    for (var i = 2; i < arguments.length; ++i) {
+        funcParams.push(arguments[i]);
+    }
+    return this._setIntervalOrTimeout(func, delayMS, false, funcParams);
+};
+
+TimeVirtualizer.prototype._clearTimeout = function(timeoutId) {
+    this._clearIntervalOrTimeout(timeoutId, false);
 };
 
 
@@ -453,12 +471,20 @@ module.exports = Timeout;
 
 var isUndefOrNull = require('./Util').isUndefOrNull;
 
-// realFunc : real setInterval or real setTimeout
-// killMeVirtualizerFunc: virtualized clearInterval or clearTimeout
-function Timeout(realSetFunc, killMeVirtualizerFunc, isPeriodic,
-    delayMS, callback, parameters) {
+function Timeout(isPeriodic, delayMS, callback, parameters) {
     // Id should be equal to real to allow user to cancel timeout after
     // unvirtualization is performed.
+
+    var realSetFunc;
+    var killMeVirtualizerFunc;
+    if(isPeriodic) {
+        realSetFunc = timeVirtualizer._reals.setInterval;
+        killMeVirtualizerFunc = timeVirtualizer._clearInterval;
+    } else {
+        realSetFunc = timeVirtualizer._reals.setTimeout;
+        killMeVirtualizerFunc = timeVirtualizer._clearTimeout;
+    }
+
     this._realId = realSetFunc.call(window,
         this._onRealTimeoutFired.bind(this), delayMS);
     this._killMeVirtualizerFunc = killMeVirtualizerFunc;
@@ -470,7 +496,7 @@ function Timeout(realSetFunc, killMeVirtualizerFunc, isPeriodic,
     this._isVirtFired = false;
     this._isRealFired = false;
     this._isVirtMode = false;
-    this._virtFireTSMS = 0;
+    this._fireTSMS = timeVirtualizer._virtDate.now() + delayMS;
 };
 
 Timeout.prototype.getId = function() {
@@ -485,14 +511,9 @@ Timeout.prototype.getDelayMS = function() {
     return this._delayMS;
 };
 
-Object.defineProperty(Timeout.prototype, 'virtFireTSMS', {
-    get : function() {
-        return this._virtFireTSMS;
-    },
-    set : function(value) {
-        this._virtFireTSMS = value;
-    }
-});
+Timeout.prototype.getFireTSMS = function() {
+    return this._fireTSMS;
+};
 
 Timeout.prototype.virtFire = function() {
     this._isVirtFired = true;
@@ -539,6 +560,8 @@ Timeout.prototype._callCallback = function() {
 
     if (!this.getIsPeriodic()) {
         this._killMeVirtualizerFunc.call(window.timeVirtualizer, this.getId());
+    } else {
+        this._fireTSMS += this.getDelayMS();
     }
 };
 
@@ -552,9 +575,8 @@ Timeout.prototype.destroy = function() {
     delete this._isVirtFired;
     delete this._isRealFired;
     delete this._isVirtMode;
-    delete this._virtFireTSMS;
+    delete this._fireTSMS;
 };
-
 
 },{"./Util":6}],6:[function(require,module,exports){
 exports.assert = assert;
@@ -605,7 +627,7 @@ VirtDate.prototype.realNow = function() {
 
 VirtDate.prototype.now = function() {
     if (this._virtualized) {
-        return this._timeVirtualizer.getVirtTSMS();
+        return this._timeVirtualizer.virtDateNow();
     } else {
         return this._realDateNow.call(this._realDate);
     }
