@@ -1,6 +1,6 @@
 {
   "name": "timevirtualizer",
-  "version": "0.0.3",
+  "version": "0.0.5",
   "author": "Eugene Batalov <eabatalov89@gmail.com>",
   "contributors": [{
 	  "name": "Alexandr Yanenko",
@@ -10,7 +10,7 @@
   "main": "dist/assembledTimeVirtualizer.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yanenkoa/jstimevirtualizer"
+    "url": "https://github.com/yanenkoa/jstimevirtualizer.git"
   },
   "license": "MIT",
   "devDependencies": {
