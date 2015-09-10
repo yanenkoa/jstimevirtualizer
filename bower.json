@@ -19,5 +19,12 @@
   },
   "scripts": {
     "build": "browserify lib/TimeVirtualizer.js -o dist/assembledTimeVirtualizer.js"
-  }
+  },
+  "ignore": [
+	"test",
+	"README.md",
+	".gitignore",
+	"package.json",
+	"karma.conf.js"
+  ]
 }
