@@ -1,7 +1,3 @@
-describe("Neccessary operations", function() {
-    require('../lib/TimeVirtualizer');
-});
-
 describe("advanceTimeMS function" , function() {
     beforeAll(function() {
         timeVirtualizer.virtualize();
