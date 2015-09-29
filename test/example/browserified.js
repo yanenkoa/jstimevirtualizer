@@ -7,13 +7,12 @@ var isUndefOrNull = Util.isUndefOrNull;
 
 // AnimationFrameRequest
 // killMeFunc timeVirtualizer.(animFrameRequest id)
-function AnimationFrameRequest(
-    realRequestAnimationFrameFunc, killMeVirtualizerFunc, callback) {
+function AnimationFrameRequest(callback) {
 
-    this._realId = realRequestAnimationFrameFunc.call(
-        window, this._onRealAnimationFrameFired.bind(this));
+    this._realId = timeVirtualizer._reals.requestAnimationFrame.call(
+            window, this._onRealAnimationFrameFired.bind(this));
+
     this._callback = callback;
-    this._killMeVirtualizerFunc = killMeVirtualizerFunc;
 
     this._isVirtFired = false;
     this._isRealFired = false;
@@ -61,7 +60,6 @@ AnimationFrameRequest.prototype._callCallback = function() {
     }
     // This one may be destroyed in callback. Do additional check.
     if (!this.isValid()) { return; }
-    this._killMeVirtualizerFunc.call(window.timeVirtualizer, this.getId());
 };
 
 AnimationFrameRequest.prototype.destroy = function() {
@@ -179,6 +177,8 @@ function TimeVirtualizer() {
     this._virtTimeToAdvanceMS = 0;
     this._timeoutWorker = work(require('./Worker'));
     this._timeoutWorker.onmessage = this._onTimeoutWorkerMessage.bind(this);
+    this._intervalForAnimFramesMS = 0;
+    this._lastAnimFrameFireMS = 0;
     this._realTimeoutFuncs = {};
     this._realTimeoutFuncsIdCntr = 0;
     this._reals = {
@@ -253,6 +253,15 @@ TimeVirtualizer.prototype.unVirtualize = function() {
     this._virtPerformance.unVirtualize();
 };
 
+TimeVirtualizer.prototype.setFPS = function(FPS) {
+    if (FPS == 0) {
+        this._intervalForAnimFramesMS = 0;
+    } else {
+        this._intervalForAnimFramesMS = Math.floor(1000/FPS);
+        this._lastAnimFrameFireMS = timeVirtualizer._virtDate.now();
+    };
+};
+
 TimeVirtualizer.prototype.advanceTimeMS = function(durationMS) {
     assert(this._virtualized, 'Virtualized time is advanced');
     this._virtTimeToAdvanceMS += durationMS;
@@ -308,50 +317,89 @@ TimeVirtualizer.prototype._sortTimeouts = function() {
         var i;
 
         i = j;
-        while(i+1 < len && this._timeouts[i].getFireTSMS() > this._timeouts[i+1].getFireTSMS()) {
+        while(i+1 < len &&
+              this._timeouts[i].getFireTSMS() > this._timeouts[i+1].getFireTSMS()) {
             this._swapInTimeouts(i, i+1);
             i++;
         }
 
         i = j;
-        while(i > 0 && this._timeouts[i].getFireTSMS() < this._timeouts[i-1].getFireTSMS()) {
+        while(i > 0 &&
+              this._timeouts[i].getFireTSMS() < this._timeouts[i-1].getFireTSMS()) {
             this._swapInTimeouts(i, i-1);
             i--;
         }
     }
 };
 
+TimeVirtualizer.prototype._getProceedTime = function(upperBorder) {
+    var timeout = this._timeouts[0];
+    // As this._timeouts is sorted, in the beginning of the array
+    // is the timeout with lowest getFireTSMS().
+    var nextAnimFrameFire = this._lastAnimFrameFireMS + this._intervalForAnimFramesMS;
+
+    var proceedTime;
+    if (isUndefOrNull(timeout)) {
+        if (this._intervalForAnimFramesMS == 0) {
+            proceedTime = upperBorder;
+        } else {
+            proceedTime = Math.min(upperBorder, nextAnimFrameFire - this._virtTSMS);
+        }
+    } else {
+        if (this._intervalForAnimFramesMS == 0) {
+            proceedTime = Math.min(timeout.getFireTSMS() - this._virtTSMS,
+                                   upperBorder);
+        } else {
+            proceedTime = Math.min(timeout.getFireTSMS() - this._virtTSMS,
+                                   nextAnimFrameFire - this._virtTSMS,
+                                   upperBorder);
+        }
+    }
+
+    return proceedTime;
+};
+
+TimeVirtualizer.prototype._fireTimeout = function() {
+    var timeout = this._timeouts[0];
+    if (!isUndefOrNull(timeout) &&
+        timeout.getFireTSMS() <= this._virtTSMS &&
+        timeout.isValid()) {
+
+        timeout.virtFire();
+        if (timeout.getIsPeriodic()) {
+            this._sortTimeouts();
+        }
+    }
+};
+
+TimeVirtualizer.prototype._fireAnimFrames = function() {
+    if (this._virtTSMS - this._lastAnimFrameFireMS >= this._intervalForAnimFramesMS) {
+        var animFramesToFire = this._requestAnimFrames.slice();
+        for (var i = 0; i < animFramesToFire.length; ++i) {
+            var animFrame = animFramesToFire[i];
+            if (animFrame.isValid()) {
+                animFrame.virtFire();
+            }
+        }
+        this._lastAnimFrameFireMS = this._virtTSMS;
+    }
+};
+
 TimeVirtualizer.prototype._advanceTimeMSInSafeContext = function(durationMS) {
     if (!this._virtualized) { return; } // probably was unVirtualized already
 
-    while(durationMS > 0) {
-        var timeout = this._timeouts[0];
-        // As this._timeouts is sorted, in the beginning of the array
-        // is the timeout with lowest getFireTSMS().
-        if(isUndefOrNull(timeout)) {
-            this._virtTSMS += durationMS;
-            break;
-        }
-        var proceedTime = Math.min(timeout.getFireTSMS() - this._virtTSMS, durationMS);
+    while (durationMS > 0) {
+        var proceedTime = this._getProceedTime(durationMS);
         this._virtTSMS += proceedTime;
         durationMS -= proceedTime;
 
-        if (timeout.getFireTSMS() <= this._virtTSMS && timeout.isValid()) {
-            timeout.virtFire();
-            if (timeout.getIsPeriodic()) {
-                this._sortTimeouts();
-            }
-        }
+        this._fireTimeout();
+        if (this._intervalForAnimFramesMS != 0)
+            this._fireAnimFrames();
     }
 
-    // Extra protection from anim frames callbacks side effects needed
-    var animFramesToFire = this._requestAnimFrames.slice();
-    for(var i = 0; i < animFramesToFire.length; ++i) {
-        var animFrame = animFramesToFire[i];
-        if (animFrame.isValid()) {
-            animFrame.virtFire();
-        }
-    }
+    if (this._intervalForAnimFramesMS == 0)
+        this._fireAnimFrames();
 };
 
 // Virtual timestamp in milliseconds
@@ -360,11 +408,7 @@ TimeVirtualizer.prototype.virtDateNow = function() {
 };
 
 TimeVirtualizer.prototype._requestAnimationFrame = function(callback) {
-    var virtAnimationFrameRequest =
-        new AnimationFrameRequest(
-            this._reals.requestAnimationFrame, this._cancelAnimationFrame,
-            callback
-        );
+    var virtAnimationFrameRequest = new AnimationFrameRequest(callback);
     if (this._virtualized) {
         virtAnimationFrameRequest.virtualize();
     }
