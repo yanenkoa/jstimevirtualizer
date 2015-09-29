@@ -24,6 +24,7 @@
     "webworkify": "^1.0.2"
   },
   "scripts": {
-    "build": "browserify lib/TimeVirtualizer.js -o dist/assembledTimeVirtualizer.js"
+    "build": "browserify lib/TimeVirtualizer.js -o dist/assembledTimeVirtualizer.js",
+    "build-demo": "browserify test/example/snake.js -o test/example/browserified.js"
   }
 }
